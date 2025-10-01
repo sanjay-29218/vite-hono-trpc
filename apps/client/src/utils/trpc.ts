@@ -15,7 +15,9 @@ export const trpcClient = trpc.createClient({
       // Preview:    https://<your-preview-backend>.vercel.app/trpc
       // Dev:        http://localhost:3000/trpc
       url:
-        (import.meta.env.VITE_TRPC_URL as string | undefined) ||
+        (`${import.meta.env.VITE_API_URL as string}/trpc` as
+          | string
+          | undefined) ||
         (typeof window === "undefined"
           ? "http://localhost:3000/trpc"
           : "/api/trpc"),
