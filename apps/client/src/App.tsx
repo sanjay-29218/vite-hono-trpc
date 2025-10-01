@@ -1,10 +1,10 @@
-import "./App.css";
 import { trpc } from "./utils/trpc";
 
 function App() {
   const { data } = trpc.message.getMessage.useQuery();
-  console.log(data);
-  return <>{data}</>;
+  return (
+    <div className="text-3xl font-bold underline text-red-500">{data}</div>
+  );
 }
 
 export default App;
