@@ -1,5 +1,5 @@
-import { createTRPCRouter } from "../server";
-import messageRouter from "./message";
+import { createTRPCRouter } from "../server.js";
+import messageRouter from "./message.js";
 
 const appRouter = createTRPCRouter({
   message: messageRouter,
