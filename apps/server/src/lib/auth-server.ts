@@ -16,8 +16,8 @@ export const auth = betterAuth({
     google: {
       //   clientId: env.GOOGLE_CLIENT_ID,
       //   clientSecret: env.GOOGLE_CLIENT_SECRET,
-      clientId: "",
-      clientSecret: "",
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
 });

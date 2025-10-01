@@ -1,16 +1,16 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { apiKey } from "../db/schema";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import { apiKey } from "@/db/schema";
+import { createTRPCRouter, protectedProcedure } from "@/trpc/server";
 
 export const apiKeyRouter = createTRPCRouter({
-  listApiKeys: publicProcedure.query(async ({ ctx }) => {
+  listApiKeys: protectedProcedure.query(async ({ ctx }) => {
     const { db, session } = await ctx;
     const userId = session?.user?.id;
     const rows = await db
       .select()
       .from(apiKey)
-      .where(eq(apiKey.userId, userId));
+      .where(eq(apiKey.userId, userId as string));
     return rows;
   }),
   createApiKey: protectedProcedure
@@ -24,7 +24,7 @@ export const apiKeyRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { providerId, key, providerName } = input;
       const { session, db } = await ctx;
-      const { id: userId } = session.user;
+      const { id: userId } = session?.user as { id: string };
       const [created] = await db
         .insert(apiKey)
         .values({

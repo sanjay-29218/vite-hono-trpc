@@ -1,9 +1,7 @@
-"use client"
+import * as React from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
-
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function TooltipProvider({
   delayDuration = 0,
@@ -15,23 +13,23 @@ function TooltipProvider({
       delayDuration={delayDuration}
       {...props}
     />
-  )
+  );
 }
 
-function Tooltip({
+function TooltipComponent({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return (
     <TooltipProvider>
       <TooltipPrimitive.Root data-slot="tooltip" {...props} />
     </TooltipProvider>
-  )
+  );
 }
 
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipContent({
@@ -55,7 +53,38 @@ function TooltipContent({
         <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
-  )
+  );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+interface TooltipProps extends React.ComponentProps<typeof TooltipComponent> {
+  disabled?: boolean;
+  text?: string;
+  children: React.ReactNode;
+  side?: "top" | "right" | "bottom" | "left";
+  sideOffset?: number;
+  asChild?: boolean;
+  className?: string;
+}
+function Tooltip({ disabled, ...props }: TooltipProps) {
+  if (disabled) return <>{props.children}</>;
+  return (
+    <TooltipComponent {...props}>
+      <TooltipTrigger asChild={props.asChild}>{props.children}</TooltipTrigger>
+      <TooltipContent
+        className={props.className}
+        side={props.side}
+        sideOffset={props.sideOffset}
+      >
+        {props.text}
+      </TooltipContent>
+    </TooltipComponent>
+  );
+}
+
+export {
+  TooltipComponent,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+  Tooltip,
+};

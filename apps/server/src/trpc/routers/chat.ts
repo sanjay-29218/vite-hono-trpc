@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { thread } from "../db/schema";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { thread } from "@/db/schema";
+import { createTRPCRouter, protectedProcedure } from "@/trpc/server";
 
 export const chatRouter = createTRPCRouter({
   getChats: protectedProcedure.query(async ({ ctx }) => {
     const { session, db } = await ctx;
-    const { id: userId } = session.user;
+    const { id: userId } = session?.user as { id: string };
     const chats = await db.query.thread.findMany({
       where: eq(thread.userId, userId),
       orderBy: (thread, { desc }) => [desc(thread.updatedAt)],

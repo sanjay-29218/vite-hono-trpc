@@ -9,5 +9,6 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!session) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  return next({ ctx });
+
+  return next({ ctx: { ...ctx, session } });
 });

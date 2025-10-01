@@ -1,10 +1,16 @@
-import { trpc } from "./utils/trpc";
+import ChatPreview from "./components/chat/ChatPreview";
+import ChatSidebar from "./components/chat/ChatSidebar";
+import { SidebarInset, SidebarTrigger } from "./components/ui/sidebar";
+import { cn } from "./lib/utils";
 
 function App() {
-  const { data } = trpc.message.getMessages.useQuery({ threadId: "1" });
   return (
-    <div className="text-3xl font-bold underline text-red-500">
-      {data?.map((message) => message.content)}
+    <div className={cn("relative flex h-screen w-full overflow-hidden")}>
+      <ChatSidebar />
+      <SidebarInset>
+        <SidebarTrigger className="absolute top-4 left-4 z-50" />
+        <ChatPreview />
+      </SidebarInset>
     </div>
   );
 }
