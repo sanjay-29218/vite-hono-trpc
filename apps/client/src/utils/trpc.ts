@@ -10,7 +10,15 @@ export const queryClient = new QueryClient();
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      // Prefer explicit env var. Example values:
+      // Production: https://vite-hono-trpc-server.vercel.app/trpc
+      // Preview:    https://<your-preview-backend>.vercel.app/trpc
+      // Dev:        http://localhost:3000/trpc
+      url:
+        (import.meta.env.VITE_TRPC_URL as string | undefined) ||
+        (typeof window === "undefined"
+          ? "http://localhost:3000/trpc"
+          : "/api/trpc"),
     }),
   ],
 });
