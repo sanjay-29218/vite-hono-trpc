@@ -1,7 +1,12 @@
 {
   "name": "server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir dist",
+    "start": "bun run dist/index.js "
   },
   "dependencies": {
     "@trpc/server": "^11.6.0",

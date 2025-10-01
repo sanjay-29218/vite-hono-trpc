@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import appRouter from "./trpc/routers/router";
 import { createTRPCContext } from "./trpc/context";
+import { serveStatic } from "hono/bun";
 const app = new Hono();
 
 app.use("*", cors());
