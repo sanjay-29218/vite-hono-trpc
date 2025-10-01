@@ -1,9 +1,49 @@
-import { publicProcedure, createTRPCRouter } from "../server.js";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { threadMessages } from "../../db/schema";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "../server";
 
-const messageRouter = createTRPCRouter({
-  getMessage: publicProcedure.query(() => "hello tRPC v10!"),
-  getMessage2: publicProcedure.query(() => "hello tRPC v10!2"),
-  getMessage3: publicProcedure.query(() => "hello tRPC v10!3"),
+export const messageRouter = createTRPCRouter({
+  createMessage: protectedProcedure
+    .input(
+      z.object({
+        threadId: z.string(),
+        content: z.string(),
+        parentMessageId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { threadId, content, parentMessageId } = input;
+      const messageId = crypto.randomUUID();
+      const { db } = await ctx;
+      await db.insert(threadMessages).values({
+        id: messageId,
+        threadId,
+        content,
+        role: "user",
+        isActive: true,
+        version: 1,
+        parentMessageId,
+        createdAt: new Date(),
+      });
+      return { messageId };
+    }),
+  getMessages: protectedProcedure
+    .input(z.object({ threadId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { threadId } = input;
+      const { db } = await ctx;
+      const messages = await db.query.threadMessages.findMany({
+        where: eq(threadMessages.threadId, threadId),
+        orderBy: (threadMessages, { asc }) => [asc(threadMessages.createdAt)],
+      });
+      return messages;
+    }),
+  publicMesages: publicProcedure.query(async ({ ctx }) => {
+    return "Hello, world!";
+  }),
 });
-
-export default messageRouter;
