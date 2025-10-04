@@ -10,17 +10,17 @@ export const queryClient = new QueryClient();
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      // Prefer explicit env var. Example values:
-      // Production: https://vite-hono-trpc-server.vercel.app/trpc
-      // Preview:    https://<your-preview-backend>.vercel.app/trpc
-      // Dev:        http://localhost:3000/trpc
-      url:
-        (`${import.meta.env.VITE_API_URL as string}/trpc` as
-          | string
-          | undefined) ||
-        (typeof window === "undefined"
-          ? "http://localhost:3000/trpc"
-          : "/api/trpc"),
+      // Prefer explicit env var. Fallback to dev backend directly
+      // so auth cookies (set on :3000) are sent with requests.
+      url: (import.meta.env.VITE_API_URL as string | undefined)
+        ? `${import.meta.env.VITE_API_URL as string}/trpc`
+        : "http://localhost:3000/trpc",
+      fetch(url, options) {
+        return fetch(url, {
+          ...options,
+          credentials: "include",
+        });
+      },
     }),
   ],
 });
