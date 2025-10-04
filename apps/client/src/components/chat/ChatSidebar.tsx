@@ -29,10 +29,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { type User } from "better-auth";
 import { Link, useNavigate } from "react-router";
 import { WarningModal } from "@/components/ui-element/Modal";
-import { createAuthClient } from "better-auth/react";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/utils/trpc";
-const { useSession } = createAuthClient();
+const { useSession } = authClient;
 
 export default function ChatSidebar() {
   const { isLoading, setActiveChatId } = useUIChat();
@@ -113,7 +112,10 @@ export default function ChatSidebar() {
             <SidebarMenuButton
               onClick={() =>
                 authClient.signIn.social(
-                  { provider: "google" },
+                  {
+                    provider: "google",
+                    callbackURL: `${window.location.origin}/`,
+                  },
                   {
                     onSuccess: () => {
                       void router(`/`);
@@ -248,7 +250,10 @@ const ChatList = memo(
               isActive={activeChatId === chat.id}
               className="w-full"
             >
-              <Link to={`/chat/${chat.id}`} onClick={() => onSelect(chat.id)}>
+              <Link
+                to={`/?threadId=${chat.id}`}
+                onClick={() => onSelect(chat.id)}
+              >
                 {chat.title}
               </Link>
             </SidebarMenuButton>
