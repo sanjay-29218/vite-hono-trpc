@@ -30,10 +30,14 @@ import { type User } from "better-auth";
 import { Link, useNavigate } from "react-router";
 import { WarningModal } from "@/components/ui-element/Modal";
 import { authClient } from "@/lib/auth-client";
-import { trpc } from "@/utils/trpc";
+import { trpc, type RouterOutputs } from "@/utils/trpc";
 const { useSession } = authClient;
 
-export default function ChatSidebar() {
+interface ChatSidebarProps {
+  onSelectThread: (thread: RouterOutputs["chat"]["getChats"][number]) => void;
+}
+
+export default function ChatSidebar(props: ChatSidebarProps) {
   const { isLoading, setActiveChatId } = useUIChat();
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);

@@ -1,22 +1,52 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChatComposer from "./ChatComposer";
 import ChatMessageWrapper from "./ChatContainer";
 import HomeSuggestions from "./HomeSuggestions";
 import { useUIChat } from "@/providers/ChatProvider";
 import { fetchWithErrorHandlers } from "@/lib/utils";
+import { trpc, type RouterOutputs } from "@/utils/trpc";
+import { useSearchParams } from "react-router";
 
-export default function ChatPreview() {
-  const isNewConversation = useRef(true);
+interface ChatPreviewProps {
+  thread?: RouterOutputs["chat"]["getChats"][number];
+}
+
+export default function ChatPreview(props: ChatPreviewProps) {
+  const isNewConversation = useRef(!props.thread?.id);
+  const [params] = useSearchParams();
+  const threadId = params.get("threadId") ?? "";
+  const threadIdRef = useRef(threadId);
   const { setActiveChatId, refetchChats } = useUIChat();
-  const resolvedThreadId = "1";
+  const resolvedThreadId = threadIdRef.current;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState("");
   const [isHomeSuggestionsVisible, setIsHomeSuggestionsVisible] = useState(
     isNewConversation.current
   );
   const [composerInput, setComposerInput] = useState("");
+
+  // Preload existing messages if a thread is selected
+  const { data: serverMessages } = trpc.message.getMessages.useQuery(
+    { threadId: resolvedThreadId },
+    { enabled: !!resolvedThreadId }
+  );
+
+  type ServerMessage = {
+    id: string;
+    content: string;
+    role: "user" | "assistant";
+  };
+
+  const initialMessages: UIMessage[] = useMemo(() => {
+    return ((serverMessages ?? []) as ServerMessage[]).map((m) => ({
+      id: m.id,
+      role: m.role,
+      parts: [{ type: "text" as const, text: String(m.content) }],
+    }));
+  }, [serverMessages]);
 
   useEffect(() => {
     setModel(localStorage.getItem("selectedModel") ?? "");
@@ -44,8 +74,8 @@ export default function ChatPreview() {
 
   // initialize use chat hook
   const { sendMessage, messages, status, stop } = useChat({
-    id: resolvedThreadId,
-    messages: [],
+    id: resolvedThreadId || "new",
+    messages: initialMessages,
     transport,
     onFinish: () => {
       if (isNewConversation.current) {
@@ -58,6 +88,13 @@ export default function ChatPreview() {
       console.error(error);
     },
   });
+
+  // Determine whether this is a new conversation when thread/messages change
+  useEffect(() => {
+    const newConv = !resolvedThreadId || (serverMessages?.length ?? 0) === 0;
+    isNewConversation.current = newConv;
+    setIsHomeSuggestionsVisible(newConv);
+  }, [resolvedThreadId, serverMessages]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollContainerRef.current;
@@ -81,14 +118,20 @@ export default function ChatPreview() {
       });
       setComposerInput("");
       if (isNewConversation.current) {
-        window.history.replaceState({}, "", `/chat/${resolvedThreadId}`);
+        // create a new thread
+        threadIdRef.current = crypto.randomUUID();
+        window.history.replaceState(
+          {},
+          "",
+          `chat/?threadId=${threadIdRef.current}`
+        );
       }
       // Always snap to bottom after sending
       setTimeout(() => {
         scrollToBottom("smooth");
       }, 100);
     },
-    [scrollToBottom, sendMessage, isNewConversation, resolvedThreadId]
+    [scrollToBottom, sendMessage, isNewConversation, threadIdRef]
   );
 
   // Keep HomeSuggestions visible when new chat and composer is empty

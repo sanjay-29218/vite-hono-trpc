@@ -2,6 +2,10 @@ import { httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { QueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "../../../server/src/trpc/routers/router";
+import type {
+  RouterInputs,
+  RouterOutputs,
+} from "../../../server/src/trpc/routers/router";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -24,3 +28,5 @@ export const trpcClient = trpc.createClient({
     }),
   ],
 });
+
+export type { RouterInputs, RouterOutputs };

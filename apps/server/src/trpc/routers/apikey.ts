@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { apiKey } from "@/db/schema";
-import { createTRPCRouter, protectedProcedure } from "@/trpc/server";
-
+import { createTRPCRouter, protectedProcedure } from "../server";
+import { apiKey } from "../../db/schema";
 export const apiKeyRouter = createTRPCRouter({
   listApiKeys: protectedProcedure.query(async ({ ctx }) => {
     const { db, session } = await ctx;
