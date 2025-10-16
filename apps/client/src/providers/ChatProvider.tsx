@@ -11,6 +11,8 @@ interface ChatContextType {
   refetchChats: () => void;
   refetchApiKeys: () => void;
   apiKeys: RouterOutputs["apiKey"]["listApiKeys"];
+  newConversationKey: string | null;
+  setNewConversationKey: (newConversationKey: string | null) => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -21,6 +23,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [params] = useSearchParams();
   const { data: session } = useSession();
   const threadId = params.get("threadId") ?? "";
+  const [newConversationKey, setNewConversationKey] = useState<string | null>(
+    null
+  );
   const {
     data: chats,
     isLoading,
@@ -64,6 +69,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           void refetchApiKeysQuery();
         },
         apiKeys: apiKeys ?? [],
+        newConversationKey,
+        setNewConversationKey: (newConversationKey: string | null) => {
+          setNewConversationKey(newConversationKey);
+        },
       }}
     >
       {children}

@@ -20,8 +20,6 @@ export default function ChatPreview() {
   );
   const [composerInput, setComposerInput] = useState("");
 
-  console.log("activeThreadId", activeThreadId);
-
   // Preload existing messages if a thread is selected
   const { data: serverMessages, refetch: refetchMessages } =
     trpc.message.getMessages.useQuery(

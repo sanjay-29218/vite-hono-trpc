@@ -5,15 +5,15 @@ import { cn } from "./lib/utils";
 import { useUIChat } from "./providers/ChatProvider";
 
 function App() {
-  const { activeThreadId } = useUIChat();
+  const { activeThreadId, newConversationKey } = useUIChat();
+  const resolvedNewConversationKey = activeThreadId ?? newConversationKey;
 
-  console.log("activeThreadId in app", activeThreadId);
   return (
     <div className={cn("relative flex h-screen w-full overflow-hidden")}>
       <ChatSidebar />
       <SidebarInset>
         <SidebarTrigger className="absolute top-4 left-4 z-50" />
-        <NewChat key={activeThreadId} />
+        <NewChat key={resolvedNewConversationKey} />
         {/* <ChatPreview key={activeThreadId} /> */}
       </SidebarInset>
     </div>
