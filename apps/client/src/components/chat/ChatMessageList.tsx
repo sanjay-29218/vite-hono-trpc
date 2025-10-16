@@ -57,7 +57,7 @@ const ChatMessage = memo(
       <Message from={props.message.role}>
         <MessageContent variant={isUser ? "contained" : "flat"}>
           {isUser ? (
-            <div className="text-foreground whitespace-pre-wrap">{text}</div>
+            <div className="whitespace-pre-wrap">{text}</div>
           ) : (
             <AssistantMarkdown content={text} />
           )}

@@ -1,29 +1,20 @@
-import ChatPreview from "./components/chat/ChatPreview";
 import ChatSidebar from "./components/chat/ChatSidebar";
+import NewChat from "./components/chat/NewChat";
 import { SidebarInset, SidebarTrigger } from "./components/ui/sidebar";
 import { cn } from "./lib/utils";
-import { useSearchParams } from "react-router";
-import { trpc } from "./utils/trpc";
-import { useState } from "react";
-import type { RouterOutputs } from "./utils/trpc";
+import { useUIChat } from "./providers/ChatProvider";
 
 function App() {
-  const [params] = useSearchParams();
-  const [selectedThread, setSelectedThread] =
-    useState<RouterOutputs["chat"]["getChats"][number]>();
-  const threadId = params.get("threadId") ?? "";
-  const { data: threads } = trpc.chat.getChats.useQuery(undefined, {
-    enabled: !!threadId,
-  });
+  const { activeThreadId } = useUIChat();
 
-  console.log("threads", threads);
-
+  console.log("activeThreadId in app", activeThreadId);
   return (
     <div className={cn("relative flex h-screen w-full overflow-hidden")}>
-      <ChatSidebar onSelectThread={setSelectedThread} />
+      <ChatSidebar />
       <SidebarInset>
         <SidebarTrigger className="absolute top-4 left-4 z-50" />
-        <ChatPreview thread={selectedThread} />
+        <NewChat key={activeThreadId} />
+        {/* <ChatPreview key={activeThreadId} /> */}
       </SidebarInset>
     </div>
   );

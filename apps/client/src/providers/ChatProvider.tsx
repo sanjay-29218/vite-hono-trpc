@@ -1,39 +1,26 @@
-import { trpc } from "@/utils/trpc";
+import { trpc, type RouterOutputs } from "@/utils/trpc";
 import { createAuthClient } from "better-auth/react";
 import { createContext, useContext, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
-const ChatContext = createContext<{
-  activeChatId?: string | null;
-  setActiveChatId: (activeChatId?: string | null) => undefined;
-  chats: {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date | null;
-    userId: string;
-    title: string;
-  }[];
+interface ChatContextType {
+  activeThreadId: string | null;
+  setActiveThreadId: (activeThreadId: string | null | undefined) => void;
+  chats: RouterOutputs["chat"]["getChats"];
   isLoading: boolean;
-  refetchChats: () => undefined;
-  refetchApiKeys: () => undefined;
-  apiKeys: {
-    id: string;
-    key: string;
-    providerName: string;
-  }[];
-}>({
-  activeChatId: null,
-  setActiveChatId: (activeChatId?: string | null) => undefined,
-  chats: [],
-  isLoading: false,
-  refetchChats: () => undefined,
-  refetchApiKeys: () => undefined,
-  apiKeys: [],
-});
+  refetchChats: () => void;
+  refetchApiKeys: () => void;
+  apiKeys: RouterOutputs["apiKey"]["listApiKeys"];
+}
+
+const ChatContext = createContext<ChatContextType | null>(null);
 
 const { useSession } = createAuthClient();
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
+  const [params] = useSearchParams();
   const { data: session } = useSession();
+  const threadId = params.get("threadId") ?? "";
   const {
     data: chats,
     isLoading,
@@ -46,7 +33,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     trpc.apiKey.listApiKeys.useQuery(undefined, {
       enabled: !!session,
     });
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(threadId);
 
   // normalize date fields to Date objects for context consumers
   const memoizedChats = useMemo(
@@ -64,9 +51,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <ChatContext.Provider
       value={{
-        activeChatId,
-        setActiveChatId: (activeChatId?: string | null) => {
-          setActiveChatId(activeChatId ?? null);
+        activeThreadId,
+        setActiveThreadId: (activeThreadId: string | null | undefined) => {
+          setActiveThreadId(activeThreadId ?? null);
         },
         chats: memoizedChats,
         isLoading,
@@ -86,5 +73,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useUIChat = () => {
-  return useContext(ChatContext);
+  const context = useContext(ChatContext);
+  if (!context) {
+    throw new Error("useUIChat must be used within a ChatProvider");
+  }
+  return context;
 };

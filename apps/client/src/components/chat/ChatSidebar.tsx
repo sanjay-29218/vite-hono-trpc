@@ -30,15 +30,11 @@ import { type User } from "better-auth";
 import { Link, useNavigate } from "react-router";
 import { WarningModal } from "@/components/ui-element/Modal";
 import { authClient } from "@/lib/auth-client";
-import { trpc, type RouterOutputs } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 const { useSession } = authClient;
 
-interface ChatSidebarProps {
-  onSelectThread: (thread: RouterOutputs["chat"]["getChats"][number]) => void;
-}
-
-export default function ChatSidebar(props: ChatSidebarProps) {
-  const { isLoading, setActiveChatId } = useUIChat();
+export default function ChatSidebar() {
+  const { isLoading, setActiveThreadId } = useUIChat();
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { data: session } = useSession();
@@ -71,7 +67,7 @@ export default function ChatSidebar(props: ChatSidebarProps) {
                       return;
                     }
                     localStorage.removeItem("active_chat_id");
-                    setActiveChatId(null);
+                    setActiveThreadId(null);
                   }}
                   className="w-full justify-start gap-2"
                 >
@@ -91,7 +87,7 @@ export default function ChatSidebar(props: ChatSidebarProps) {
               isLoading={isLoading}
               onSelect={(id) => {
                 localStorage.setItem("active_chat_id", id);
-                setActiveChatId(id);
+                setActiveThreadId(id);
               }}
               user={user ?? null}
             />
@@ -152,7 +148,7 @@ export default function ChatSidebar(props: ChatSidebarProps) {
                     {
                       onSuccess: () => {
                         // Clear client caches and session
-                        setActiveChatId(null);
+                        setActiveThreadId(null);
                         localStorage.removeItem("active_chat_id");
                         localStorage.removeItem("selectedModel");
                         void router("/");
@@ -195,13 +191,13 @@ const ChatList = memo(
     onSelect: (id: string) => void;
     user: User | null;
   }) {
-    const { activeChatId, setActiveChatId, refetchChats } = useUIChat();
+    const { activeThreadId, setActiveThreadId, refetchChats } = useUIChat();
     const navigate = useNavigate();
     const { mutate: deleteChat, isPending: isDeleting } =
       trpc.chat.deleteChat.useMutation({
         onSuccess: ({ id: deletedId }: { id: string }) => {
-          if (deletedId === activeChatId) {
-            setActiveChatId(null);
+          if (deletedId === activeThreadId) {
+            setActiveThreadId(null);
             void navigate("/");
           }
           refetchChats();
@@ -251,7 +247,7 @@ const ChatList = memo(
           <SidebarMenuItem key={chat.id}>
             <SidebarMenuButton
               asChild
-              isActive={activeChatId === chat.id}
+              isActive={activeThreadId === chat.id}
               className="w-full"
             >
               <Link
