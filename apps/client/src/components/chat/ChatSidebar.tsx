@@ -34,7 +34,12 @@ import { trpc } from "@/utils/trpc";
 const { useSession } = authClient;
 
 export default function ChatSidebar() {
-  const { isLoading, setActiveThreadId, setNewConversationKey } = useUIChat();
+  const {
+    isLoading,
+    setActiveThreadId,
+    setNewConversationKey,
+    setChatMessages,
+  } = useUIChat();
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { data: session } = useSession();
@@ -68,6 +73,7 @@ export default function ChatSidebar() {
                     }
                     localStorage.removeItem("active_chat_id");
                     setActiveThreadId(null);
+                    setChatMessages([]);
                     setNewConversationKey(crypto.randomUUID());
                   }}
                   className="w-full justify-start gap-2"
@@ -252,10 +258,7 @@ const ChatList = memo(
               isActive={activeThreadId === chat.id}
               className="w-full"
             >
-              <Link
-                to={`/?threadId=${chat.id}`}
-                onClick={() => onSelect(chat.id)}
-              >
+              <Link to={`/chat/${chat.id}`} onClick={() => onSelect(chat.id)}>
                 {chat.title}
               </Link>
             </SidebarMenuButton>

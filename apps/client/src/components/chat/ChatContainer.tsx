@@ -14,7 +14,7 @@ interface ChatContainerProps {
 export default function ChatMessageWrapper(props: ChatContainerProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const { messages, status, onScrollToBottom, scrollContainerRef } = props;
-  console.log("messages on chat message wrapper", messages);
+  console.log("messages on chat message wrapper", messages, status);
 
   const prevMessages = useMemo(
     () => (status === "streaming" ? messages.slice(0, -1) : messages),
@@ -30,27 +30,30 @@ export default function ChatMessageWrapper(props: ChatContainerProps) {
   const isStreamingAssistant =
     status === "streaming" && lastMessage?.role === "assistant";
 
-  // this is used to observe the container and show scroll to bottom button when reponse is comming
+  // Observe container size to decide when to show the scroll-to-bottom button
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => {
-      setIsAtBottom(el.clientHeight + el.scrollTop >= el.scrollHeight);
+      const next = el.clientHeight + el.scrollTop >= el.scrollHeight;
+      // Avoid redundant state updates which can cause render loops
+      setIsAtBottom((prev) => (prev === next ? prev : next));
     });
     observer.observe(el);
     return () => observer.disconnect();
-  });
+  }, [scrollContainerRef]);
 
-  // this is used to observe the container and show scroll to bottom button when reponse is comming
+  // Track scroll position once; guard redundant updates
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const handler = () => {
-      setIsAtBottom(el.clientHeight + el.scrollTop >= el.scrollHeight);
+      const next = el.clientHeight + el.scrollTop >= el.scrollHeight;
+      setIsAtBottom((prev) => (prev === next ? prev : next));
     };
     el.addEventListener("scroll", handler);
     return () => el.removeEventListener("scroll", handler);
-  }, []);
+  }, [scrollContainerRef]);
 
   return (
     <>

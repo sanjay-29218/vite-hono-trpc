@@ -79,7 +79,7 @@ router.post("/", async (c) => {
             {
               role: "system",
               content:
-                "You are a helpful assistant that generates titles for chats. make it short and concise.",
+                "You are a helpful assistant that generates titles for chats. make it short and concise. Even if the user message is small and not meaningful, generate a title for it.",
             },
             {
               role: "user",

@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp, ChevronDownIcon, StopCircleIcon } from "lucide-react";
-import { Fragment, memo, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -154,7 +154,6 @@ interface ChatModelSelectorProps {
 }
 
 const ChatModelSelector = (props: ChatModelSelectorProps) => {
-  const [model, setModel] = useState(props.model);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const { isPending } = trpc.apiKey.listApiKeys.useQuery(undefined);
   const { apiKeys } = useUIChat();
@@ -177,12 +176,16 @@ const ChatModelSelector = (props: ChatModelSelectorProps) => {
     return models;
   }, [apiKeys]);
 
-  // If no model selected but there are available models, default to first and persist cookie
-  if (!model && availableModels.length > 0) {
-    const first = availableModels[0]!.key;
-    setModel(first);
-    props.onModelChange(first);
-  }
+  // Default model selection via effect to avoid setState in render
+  useEffect(() => {
+    if (!props.model && availableModels.length > 0) {
+      const first = availableModels[0]!.key;
+      props.onModelChange(first);
+      localStorage.setItem("selectedModel", first);
+    }
+    // only run when available models computed or prop model changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableModels, props.model]);
 
   return (
     <Fragment>
@@ -218,7 +221,6 @@ const ChatModelSelector = (props: ChatModelSelectorProps) => {
                   key={m.key}
                   className="hover:bg-accent rounded-md px-2 py-1 text-left text-sm"
                   onClick={() => {
-                    setModel(m.key);
                     localStorage.setItem("selectedModel", m.key);
                     props.onModelChange(m.key);
                     setModelSelectorOpen(false);
