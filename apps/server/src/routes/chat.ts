@@ -18,6 +18,7 @@ const ModelMap = {
   "gemini-2.5-flash": google("gemini-2.5-flash"),
   "gemini-2.5-flash-lite": google("gemini-2.5-flash-lite"),
 };
+
 const router = new Hono();
 
 router.post("/", async (c) => {
@@ -191,7 +192,6 @@ router.post("/", async (c) => {
     });
 
     try {
-      result.consumeStream();
       const stream = result.toUIMessageStreamResponse({
         consumeSseStream: consumeStream,
       });

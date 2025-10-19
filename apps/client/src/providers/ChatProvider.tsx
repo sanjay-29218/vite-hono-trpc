@@ -13,15 +13,18 @@ import { useParams } from "react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatStatus, type UIMessage } from "ai";
 import { fetchWithErrorHandlers } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ChatContextType {
   activeThreadId: string | null;
   setActiveThreadId: (activeThreadId: string | null | undefined) => void;
   chats: RouterOutputs["chat"]["getChats"];
+  setChats: (chats: RouterOutputs["chat"]["getChats"]) => void;
   isLoading: boolean;
   refetchChats: () => void;
   refetchApiKeys: () => void;
   apiKeys: RouterOutputs["apiKey"]["listApiKeys"];
+  apiKeysLoading: boolean;
   newConversationKey: string | null;
   setNewConversationKey: (newConversationKey: string | null) => void;
   // Chat session (provider-hosted useChat)
@@ -32,6 +35,7 @@ interface ChatContextType {
   setChatMessages: (messages: UIMessage[]) => void;
   model: string;
   setModel: (model: string) => void;
+  cachedMessages: Map<string, UIMessage[]>;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -41,60 +45,123 @@ const { useSession } = createAuthClient();
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { chatId } = useParams();
   const { data: session } = useSession();
-  const threadIdFromRoute = chatId ?? null;
   const [newConversationKey, setNewConversationKey] = useState<string | null>(
     null
   );
+  const [chats, setChats] = useState<RouterOutputs["chat"]["getChats"]>([]);
   const [model, setModel] = useState<string>("");
-  const currentSendThreadIdRef = useRef<string | null>(null);
-  // Cache messages per thread to quickly rehydrate when switching
+  const modelRef = useRef<string>("");
+  const activeThreadIdRef = useRef<string | null>(chatId);
+  const cachedMessagesRef = useRef<Map<string, UIMessage[]>>(new Map());
   const {
-    data: chats,
+    data: serverChats,
     isLoading,
     refetch: refetchChatsQuery,
   } = trpc.chat.getChats.useQuery(undefined, {
     enabled: !!session,
   });
 
-  const { data: apiKeys, refetch: refetchApiKeysQuery } =
-    trpc.apiKey.listApiKeys.useQuery(undefined, {
+  const { data: chatWithMessages } = trpc.chat.getChatsWithMessages.useQuery(
+    { messageLimit: 20 },
+    {
       enabled: !!session,
-    });
+      refetchOnMount: false,
+    }
+  );
+
+  useMemo(() => {
+    if (serverChats) {
+      setChats(serverChats);
+    }
+  }, [serverChats]);
+
+  // sync chatWithMessages to cachedMessagesRef
+  useEffect(() => {
+    if (chatWithMessages) {
+      chatWithMessages.forEach((chat) => {
+        cachedMessagesRef.current.set(
+          chat.id,
+          chat.messages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            parts: [{ type: "text" as const, text: String(message.content) }],
+          }))
+        );
+      });
+    }
+  }, [chatWithMessages]);
+
+  const {
+    data: apiKeys,
+    refetch: refetchApiKeysQuery,
+    isPending: isApiKeysPending,
+  } = trpc.apiKey.listApiKeys.useQuery(undefined, {
+    enabled: !!session,
+    // Avoid refetching on remounts like thread view switches
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+  });
   const [activeThreadId, setActiveThreadIdState] = useState<string | null>(
     chatId || null
   );
 
   // Keep activeThreadId in sync with route changes
   useEffect(() => {
-    setActiveThreadIdState(threadIdFromRoute ?? null);
-  }, [threadIdFromRoute]);
+    setActiveThreadIdState(chatId ?? null);
+    activeThreadIdRef.current = chatId ?? null;
+  }, [chatId]);
 
   // expose chats as-is (keep types aligned)
   const memoizedChats = useMemo(() => chats ?? [], [chats]);
 
-  // Build a transport once per model (and keep it stable otherwise)
+  // Keep transport stable across model changes; use ref inside request body
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: `/api/chat`,
         fetch: fetchWithErrorHandlers,
         prepareSendMessagesRequest(req) {
-          const threadIdForRequest =
-            currentSendThreadIdRef.current ?? activeThreadId ?? "";
           const userMsg = req.messages.at(-1);
           return {
             body: {
-              threadId: threadIdForRequest,
+              threadId: activeThreadIdRef.current ?? activeThreadId ?? "",
               userMessage: userMsg,
               prevMessages: req.messages,
-              model,
+              model: modelRef.current,
               ...req.body,
             },
           };
         },
       }),
-    [model, activeThreadId]
+    []
   );
+
+  const { data: serverMessages, refetch: refetchServerMessages } =
+    trpc.message.getMessages.useQuery(
+      { threadId: activeThreadId ?? "" },
+      { enabled: !!activeThreadId }
+    );
+
+  // this is used to hydrate the messages from the server after every message is sent
+
+  useEffect(() => {
+    if (
+      serverMessages &&
+      serverMessages.length > 0 &&
+      !cachedMessagesRef.current.has(activeThreadId ?? "")
+    ) {
+      cachedMessagesRef.current.set(
+        activeThreadId ?? "",
+        serverMessages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          parts: [{ type: "text" as const, text: String(message.content) }],
+        }))
+      );
+    }
+  }, [serverMessages, activeThreadId]);
 
   const {
     sendMessage: baseSendMessage,
@@ -109,32 +176,48 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     onFinish: () => {
       // After a completion, refresh chats so sidebar updates
       void refetchChatsQuery();
+      // we are syncing the messages with the server, so we need to delete the cached messages
+      cachedMessagesRef.current.delete(activeThreadId ?? "");
+      void refetchServerMessages();
     },
     onError: (error) => {
-      console.error(error);
+      toast.error(
+        error.message ?? "An error occurred while sending the message"
+      );
     },
   });
 
-  console.log("messages", messages);
-
-  // Initialize model from localStorage once
+  // hydrate the messages from the cached messages
   useEffect(() => {
-    setModel(localStorage.getItem("selectedModel") ?? "");
+    if (activeThreadId && cachedMessagesRef.current.has(activeThreadId)) {
+      setMessages(cachedMessagesRef.current.get(activeThreadId) ?? []);
+    }
+  }, [activeThreadId, setMessages]);
+  // Initialize model from localStorage once
+
+  useEffect(() => {
+    const initial = localStorage.getItem("selectedModel") ?? "";
+    setModel(initial);
+    modelRef.current = initial;
   }, []);
+
+  // Keep ref in sync with state without re-creating transport
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
 
   const sendText = useCallback(
     async (text: string, opts?: { threadId?: string }) => {
       const trimmed = (text ?? "").trim();
+      setActiveThreadIdState(opts?.threadId ?? activeThreadId ?? "");
+      activeThreadIdRef.current = opts?.threadId ?? activeThreadId ?? "";
       if (!trimmed) return;
-      // Decide which thread this send belongs to
-      const threadIdForRequest = opts?.threadId ?? activeThreadId ?? "";
-      currentSendThreadIdRef.current = threadIdForRequest;
       await baseSendMessage({
         role: "user",
         parts: [{ type: "text", text: trimmed }],
       });
     },
-    [activeThreadId, baseSendMessage]
+    [baseSendMessage, activeThreadId, setActiveThreadIdState]
   );
 
   // Derive visible messages/status for the currently active thread.
@@ -143,15 +226,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [messages]);
 
   const visibleStatus: ChatStatus = useMemo(() => {
-    const sendingThread = currentSendThreadIdRef.current;
-    return sendingThread === activeThreadId ? status : ("ready" as ChatStatus);
+    return activeThreadId ? status : "ready";
   }, [activeThreadId, status]);
 
   const stopResponseCb = useCallback(() => stop(), [stop]);
 
   const setChatMessagesCb = useCallback(
     (msgs: UIMessage[]) => {
-      console.log("setChatMessagesCb", msgs);
       setMessages(msgs);
     },
     [setMessages]
@@ -172,7 +253,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         refetchApiKeys: () => {
           void refetchApiKeysQuery();
         },
+        cachedMessages: cachedMessagesRef.current,
         apiKeys: apiKeys ?? [],
+        apiKeysLoading: !!isApiKeysPending,
         newConversationKey,
         setNewConversationKey: (newConversationKey: string | null) => {
           setNewConversationKey(newConversationKey);
@@ -182,6 +265,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         sendText,
         stopResponse: stopResponseCb,
         setChatMessages: setChatMessagesCb,
+        setChats: (chats: RouterOutputs["chat"]["getChats"]) => {
+          setChats(chats);
+        },
         model,
         setModel: (m: string) => {
           setModel(m);

@@ -36,4 +36,8 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
 
-export default app;
+export default {
+  port: 3000,
+  fetch: app.fetch,
+  idleTimeout: 120,
+};

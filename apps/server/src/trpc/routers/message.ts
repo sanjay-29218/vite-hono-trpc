@@ -43,7 +43,4 @@ export const messageRouter = createTRPCRouter({
       });
       return messages;
     }),
-  publicMesages: publicProcedure.query(async ({ ctx }) => {
-    return "Hello, world!";
-  }),
 });

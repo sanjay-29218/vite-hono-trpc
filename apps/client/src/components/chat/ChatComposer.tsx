@@ -16,7 +16,6 @@ import { useUIChat } from "@/providers/ChatProvider";
 import { type ChatStatus } from "ai";
 import { ALL_PROVIDER_META } from "@/lib/ai-providers";
 import { createAuthClient } from "better-auth/react";
-import { trpc } from "@/utils/trpc";
 import { cn } from "@/lib/utils";
 
 const { useSession } = createAuthClient();
@@ -31,7 +30,6 @@ interface ChatComposerProps {
 
 function ChatComposer(props: ChatComposerProps) {
   const [inputMessage, setInputMessage] = useState("");
-  const [hasAnnouncedTyping, setHasAnnouncedTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { data: session } = useSession();
 
@@ -42,7 +40,6 @@ function ChatComposer(props: ChatComposerProps) {
     props.onSend(inputMessage);
     setInputMessage("");
     props.onInputChange?.("");
-    setHasAnnouncedTyping(false);
   };
 
   return (
@@ -69,10 +66,6 @@ function ChatComposer(props: ChatComposerProps) {
             const val = e.target.value;
             setInputMessage(val);
             props.onInputChange?.(val);
-            if (!hasAnnouncedTyping && val.trim().length > 0) {
-              window.dispatchEvent(new CustomEvent("chat-started-typing"));
-              setHasAnnouncedTyping(true);
-            }
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -155,8 +148,7 @@ interface ChatModelSelectorProps {
 
 const ChatModelSelector = (props: ChatModelSelectorProps) => {
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
-  const { isPending } = trpc.apiKey.listApiKeys.useQuery(undefined);
-  const { apiKeys } = useUIChat();
+  const { apiKeys, apiKeysLoading } = useUIChat();
 
   const availableModels = useMemo(() => {
     const models: { key: string; name: string; providerName: string }[] = [];
@@ -199,7 +191,7 @@ const ChatModelSelector = (props: ChatModelSelectorProps) => {
           </Button>
         </PopoverTrigger>
         <PopoverContent>
-          {isPending ? (
+          {apiKeysLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-5 w-32" />
               <Skeleton className="h-5 w-40" />

@@ -30,7 +30,8 @@ import { type User } from "better-auth";
 import { Link, useNavigate } from "react-router";
 import { WarningModal } from "@/components/ui-element/Modal";
 import { authClient } from "@/lib/auth-client";
-import { trpc } from "@/utils/trpc";
+import { trpc, type RouterOutputs } from "@/utils/trpc";
+import { toast } from "sonner";
 const { useSession } = authClient;
 
 export default function ChatSidebar() {
@@ -39,6 +40,11 @@ export default function ChatSidebar() {
     setActiveThreadId,
     setNewConversationKey,
     setChatMessages,
+    activeThreadId,
+    chats,
+    refetchChats,
+    chatStatus,
+    cachedMessages,
   } = useUIChat();
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -71,6 +77,7 @@ export default function ChatSidebar() {
                       e.preventDefault();
                       return;
                     }
+                    toast.info("Creating new chat...");
                     localStorage.removeItem("active_chat_id");
                     setActiveThreadId(null);
                     setChatMessages([]);
@@ -98,6 +105,17 @@ export default function ChatSidebar() {
                 setActiveThreadId(id);
               }}
               user={user ?? null}
+              chats={chats}
+              activeThreadId={activeThreadId}
+              refetchChats={refetchChats}
+              setActiveThreadId={setActiveThreadId}
+              showChatLoading={
+                chatStatus === "streaming" || chatStatus === "submitted"
+              }
+              onDelete={(id) => {
+                cachedMessages.delete(id);
+                refetchChats();
+              }}
             />
           </SidebarGroupContent>
         </SidebarGroup>
@@ -194,12 +212,23 @@ const ChatList = memo(
     isLoading,
     onSelect,
     user,
+    chats,
+    activeThreadId,
+    refetchChats,
+    setActiveThreadId,
+    showChatLoading,
+    onDelete,
   }: {
     isLoading: boolean;
     onSelect: (id: string) => void;
     user: User | null;
+    chats: RouterOutputs["chat"]["getChats"];
+    activeThreadId: string | null;
+    refetchChats: () => void;
+    setActiveThreadId: (id: string | null | undefined) => void;
+    showChatLoading: boolean;
+    onDelete: (id: string) => void;
   }) {
-    const { activeThreadId, setActiveThreadId, refetchChats } = useUIChat();
     const navigate = useNavigate();
     const { mutate: deleteChat, isPending: isDeleting } =
       trpc.chat.deleteChat.useMutation({
@@ -215,7 +244,6 @@ const ChatList = memo(
         },
       });
 
-    const { chats } = useUIChat();
     const [openWarningModal, setOpenWarningModal] = useState<{
       id: string;
       open: boolean;
@@ -265,11 +293,21 @@ const ChatList = memo(
             <SidebarMenuAction
               aria-label="Delete"
               onClick={() => {
+                if (
+                  (showChatLoading && chat.id === activeThreadId) ||
+                  isDeleting
+                ) {
+                  toast.error(
+                    "You cannot delete a chat that is currently loading."
+                  );
+                  return;
+                }
                 setOpenWarningModal({ id: chat.id, open: true });
               }}
               className="cursor-pointer"
             >
-              {isDeleting && openWarningModal?.id === chat.id ? (
+              {(isDeleting && openWarningModal?.id === chat.id) ||
+              (showChatLoading && chat.id === activeThreadId) ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Trash2 className="text-destructive size-4" />
@@ -283,6 +321,7 @@ const ChatList = memo(
           description="Are you sure you want to delete this chat?"
           open={openWarningModal?.open ?? false}
           onConfirm={() => {
+            onDelete(openWarningModal?.id ?? "");
             deleteChat(
               { id: openWarningModal?.id ?? "" },
               {
@@ -300,5 +339,11 @@ const ChatList = memo(
       </SidebarMenu>
     );
   },
-  (prev, next) => prev.isLoading === next.isLoading
+  (prev, next) => {
+    return (
+      prev.isLoading === next.isLoading &&
+      prev.chats === next.chats &&
+      prev.activeThreadId === next.activeThreadId
+    );
+  }
 );

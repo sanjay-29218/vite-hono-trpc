@@ -14,7 +14,6 @@ interface ChatContainerProps {
 export default function ChatMessageWrapper(props: ChatContainerProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const { messages, status, onScrollToBottom, scrollContainerRef } = props;
-  console.log("messages on chat message wrapper", messages, status);
 
   const prevMessages = useMemo(
     () => (status === "streaming" ? messages.slice(0, -1) : messages),

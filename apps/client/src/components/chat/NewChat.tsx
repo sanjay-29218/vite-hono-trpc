@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ChatComposer from "./ChatComposer";
 import { useUIChat } from "@/providers/ChatProvider";
 import HomeSuggestions from "./HomeSuggestions";
 import { useNavigate } from "react-router";
+import type { RouterOutputs } from "@/utils/trpc";
 
 export default function NewChat() {
   const {
@@ -12,8 +13,9 @@ export default function NewChat() {
     setModel,
     setChatMessages,
     setActiveThreadId,
+    setChats,
+    chats,
   } = useUIChat();
-  const threadIdRef = useRef<string>("");
   const [composerInput, setComposerInput] = useState("");
   const [isHomeSuggestionsVisible, setIsHomeSuggestionsVisible] =
     useState(true);
@@ -21,21 +23,29 @@ export default function NewChat() {
 
   const onSend = useCallback(
     (inputMessage: string) => {
+      // Hide suggestions immediately to avoid flicker before navigation
+      setIsHomeSuggestionsVisible(false);
       const text = (inputMessage ?? "").trim();
       if (text.length === 0) return;
 
-      if (!threadIdRef.current) {
-        const newId = crypto.randomUUID();
-        threadIdRef.current = newId;
-        // Ensure provider state is reset and active thread is set before first send
-        setChatMessages([]);
-        setActiveThreadId(newId);
-        void navigate(`/chat/${newId}`, { replace: true });
-      }
+      const newId = crypto.randomUUID();
+      const newChat: RouterOutputs["chat"]["getChats"][number] = {
+        id: newId,
+        title: "New Chat",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userId: "new",
+      };
+      const newChats = [newChat, ...chats];
+      setChats(newChats);
+      // Ensure provider state is reset and active thread is set before first send
+      setChatMessages([]);
+      setActiveThreadId(newId);
+      void navigate(`/chat/${newId}`, { replace: true });
 
-      void sendText(inputMessage, { threadId: threadIdRef.current });
+      void sendText(inputMessage, { threadId: newId });
     },
-    [sendText, navigate, setChatMessages, setActiveThreadId]
+    [sendText, navigate, setChatMessages, setActiveThreadId, chats, setChats]
   );
 
   useEffect(() => {
