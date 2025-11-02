@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, or, lt } from "drizzle-orm";
 import { z } from "zod";
 import { thread, threadMessages } from "../../db/schema";
 import { createTRPCRouter, protectedProcedure } from "../server";
@@ -17,6 +17,55 @@ export const chatRouter = createTRPCRouter({
     });
     return chats;
   }),
+  getChatsInfinite: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).optional(),
+          cursor: z
+            .object({
+              updatedAt: z.string(), // ISO
+              id: z.string(),
+            })
+            .optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const { session, db } = await ctx;
+      const { id: userId } = session?.user as { id: string };
+      const limit = input?.limit ?? 10;
+      const cursor = input?.cursor;
+
+      const baseWhere = eq(thread.userId, userId);
+      const where = cursor
+        ? and(
+            baseWhere,
+            or(
+              lt(thread.updatedAt, new Date(cursor.updatedAt)),
+              and(
+                eq(thread.updatedAt, new Date(cursor.updatedAt)),
+                lt(thread.id, cursor.id)
+              )
+            )
+          )
+        : baseWhere;
+
+      const rows = await db.query.thread.findMany({
+        where,
+        orderBy: (t, { desc }) => [desc(t.updatedAt), desc(t.id)],
+        limit: limit + 1,
+      });
+
+      const items = rows.slice(0, limit);
+      const next = rows.length > limit ? rows[limit - 1] : undefined;
+      const nextCursor =
+        next && next.updatedAt
+          ? { updatedAt: next.updatedAt.toISOString(), id: next.id }
+          : undefined;
+
+      return { items, nextCursor };
+    }),
   getChatsWithMessages: protectedProcedure
     .input(
       z

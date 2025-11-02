@@ -57,7 +57,10 @@ export default function ChatMessageWrapper(props: ChatContainerProps) {
   return (
     <>
       <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto">
-        <ChatMessageList messages={prevMessages} />
+        <ChatMessageList
+          messages={prevMessages}
+          scrollParentRef={scrollContainerRef}
+        />
         <AiResponseStreaming
           status={status}
           messages={lastMessage ? [lastMessage] : undefined}

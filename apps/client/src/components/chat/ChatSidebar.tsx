@@ -22,7 +22,7 @@ import {
   DialogContent,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import SettingCard from "@/components/setting/SettingCard";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -43,8 +43,12 @@ export default function ChatSidebar() {
     activeThreadId,
     chats,
     refetchChats,
-    chatStatus,
+    loadMoreChats,
+    hasMoreChats,
+    isFetchingMoreChats,
     cachedMessages,
+    isThreadLoading,
+    sessionsVersion,
   } = useUIChat();
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -108,10 +112,12 @@ export default function ChatSidebar() {
               chats={chats}
               activeThreadId={activeThreadId}
               refetchChats={refetchChats}
+              loadMore={loadMoreChats}
+              hasMore={hasMoreChats}
+              isFetchingMore={isFetchingMoreChats}
               setActiveThreadId={setActiveThreadId}
-              showChatLoading={
-                chatStatus === "streaming" || chatStatus === "submitted"
-              }
+              isThreadLoading={isThreadLoading}
+              sessionsVersion={sessionsVersion}
               onDelete={(id) => {
                 cachedMessages.delete(id);
                 refetchChats();
@@ -215,8 +221,11 @@ const ChatList = memo(
     chats,
     activeThreadId,
     refetchChats,
+    loadMore,
+    hasMore,
+    isFetchingMore,
     setActiveThreadId,
-    showChatLoading,
+    isThreadLoading,
     onDelete,
   }: {
     isLoading: boolean;
@@ -225,8 +234,12 @@ const ChatList = memo(
     chats: RouterOutputs["chat"]["getChats"];
     activeThreadId: string | null;
     refetchChats: () => void;
+    loadMore: () => void;
+    hasMore: boolean;
+    isFetchingMore: boolean;
     setActiveThreadId: (id: string | null | undefined) => void;
-    showChatLoading: boolean;
+    isThreadLoading: (id: string) => boolean;
+    sessionsVersion: number;
     onDelete: (id: string) => void;
   }) {
     const navigate = useNavigate();
@@ -248,6 +261,21 @@ const ChatList = memo(
       id: string;
       open: boolean;
     } | null>(null);
+
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+      const el = sentinelRef.current;
+      if (!el) return;
+      const obs = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMore && !isFetchingMore) {
+          loadMore();
+        }
+      });
+      obs.observe(el);
+      return () => obs.disconnect();
+    }, [hasMore, isFetchingMore, loadMore]);
 
     if (!user && !isLoading) {
       return (
@@ -288,15 +316,15 @@ const ChatList = memo(
             >
               <Link to={`/chat/${chat.id}`} onClick={() => onSelect(chat.id)}>
                 {chat.title}
+                {isThreadLoading(chat.id) && (
+                  <Loader2 className="ml-2 inline size-4 animate-spin align-middle" />
+                )}
               </Link>
             </SidebarMenuButton>
             <SidebarMenuAction
               aria-label="Delete"
               onClick={() => {
-                if (
-                  (showChatLoading && chat.id === activeThreadId) ||
-                  isDeleting
-                ) {
+                if (isThreadLoading(chat.id) || isDeleting) {
                   toast.error(
                     "You cannot delete a chat that is currently loading."
                   );
@@ -307,7 +335,7 @@ const ChatList = memo(
               className="cursor-pointer"
             >
               {(isDeleting && openWarningModal?.id === chat.id) ||
-              (showChatLoading && chat.id === activeThreadId) ? (
+              isThreadLoading(chat.id) ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Trash2 className="text-destructive size-4" />
@@ -315,6 +343,23 @@ const ChatList = memo(
             </SidebarMenuAction>
           </SidebarMenuItem>
         ))}
+
+        {/* Infinite scroll sentinel */}
+        {hasMore && (
+          <SidebarMenuItem>
+            <div ref={sentinelRef} className="w-full px-2 py-2">
+              {isFetchingMore ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Loading more...
+                </div>
+              ) : (
+                <div className="text-center text-xs text-muted-foreground">
+                  Scroll to load more
+                </div>
+              )}
+            </div>
+          </SidebarMenuItem>
+        )}
 
         <WarningModal
           title="Delete Chat"
@@ -343,7 +388,8 @@ const ChatList = memo(
     return (
       prev.isLoading === next.isLoading &&
       prev.chats === next.chats &&
-      prev.activeThreadId === next.activeThreadId
+      prev.activeThreadId === next.activeThreadId &&
+      prev.sessionsVersion === next.sessionsVersion
     );
   }
 );

@@ -1,5 +1,3 @@
-"use client";
-
 import type { ChatStatus, UIMessage } from "ai";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { Response } from "@/components/ai-elements/response";
@@ -7,19 +5,89 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from "@/components/ai-elements/code-block";
-import { memo } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import isEqual from "lodash/isEqual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface ChatMessageListProps {
   messages: UIMessage[];
+  scrollParentRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 function ChatMessageList(props: ChatMessageListProps) {
+  const messages = props.messages ?? [];
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
+
+  // Fallback: find nearest scrollable ancestor if external ref isn't ready
+  useLayoutEffect(() => {
+    const provided =
+      (props.scrollParentRef?.current as HTMLElement | null) ?? null;
+    if (provided) {
+      setScrollElement(provided);
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+    let parent: HTMLElement | null = el.parentElement as HTMLElement | null;
+    while (parent) {
+      const style = window.getComputedStyle(parent);
+      const overflowY = style.overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") {
+        setScrollElement(parent);
+        break;
+      }
+      parent = parent.parentElement as HTMLElement | null;
+    }
+  }, [props.scrollParentRef]);
+
+  const getItemKey = useMemo(
+    () => (index: number) => props.messages?.[index]?.id ?? index,
+    [props.messages]
+  );
+
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length,
+    getItemKey,
+    getScrollElement: () => scrollElement,
+    estimateSize: () => 140, // sensible default; measured after mount
+    overscan: 8,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Fallback render (non-virtualized) until we know the scroll element.
+  if (!scrollElement) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="flex h-full flex-col gap-4 py-6">
+          {messages.map((m) => (
+            <ChatMessage key={m.id} message={m} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex h-full flex-col gap-4 py-6">
-        {props.messages?.map((m) => (
-          <ChatMessage key={m.id} message={m} />
+    <div ref={containerRef} className="mx-auto max-w-4xl">
+      <div
+        className="relative py-6"
+        style={{ height: rowVirtualizer.getTotalSize() }}
+      >
+        {virtualItems.map((vi) => (
+          <div
+            key={vi.key}
+            data-index={vi.index}
+            ref={rowVirtualizer.measureElement}
+            className="absolute left-0 top-0 w-full"
+            style={{ transform: `translateY(${vi.start}px)` }}
+          >
+            <div className="flex flex-col gap-4">
+              <ChatMessage message={messages[vi.index]!} />
+            </div>
+          </div>
         ))}
       </div>
     </div>
