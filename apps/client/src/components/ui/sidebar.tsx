@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { observer } from "mobx-react-lite";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -495,7 +496,7 @@ const sidebarMenuButtonVariants = cva(
   }
 );
 
-function SidebarMenuButton({
+const SidebarMenuButton = observer(function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
@@ -543,7 +544,7 @@ function SidebarMenuButton({
       />
     </Tooltip>
   );
-}
+});
 
 function SidebarMenuAction({
   className,

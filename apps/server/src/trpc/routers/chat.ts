@@ -110,6 +110,84 @@ export const chatRouter = createTRPCRouter({
         return { ...c, messages: limited } as ThreadWithMessages;
       });
     }),
+  getChatsWithMessagesInfinite: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).optional(),
+          cursor: z
+            .object({
+              updatedAt: z.string(), // ISO
+              id: z.string(),
+            })
+            .optional(),
+          messageLimit: z.number().min(1).max(500).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const { session, db } = await ctx;
+      const { id: userId } = session?.user as { id: string };
+      const limit = input?.limit ?? 10;
+      const cursor = input?.cursor;
+      const perThreadMessageLimit = input?.messageLimit;
+
+      const baseWhere = eq(thread.userId, userId);
+      const where = cursor
+        ? and(
+            baseWhere,
+            or(
+              lt(thread.updatedAt, new Date(cursor.updatedAt)),
+              and(
+                eq(thread.updatedAt, new Date(cursor.updatedAt)),
+                lt(thread.id, cursor.id)
+              )
+            )
+          )
+        : baseWhere;
+
+      const rows = await db.query.thread.findMany({
+        where,
+        orderBy: (t, { desc }) => [desc(t.updatedAt), desc(t.id)],
+        limit: limit + 1,
+      });
+
+      const itemsOnly = rows.slice(0, limit);
+      if (itemsOnly.length === 0)
+        return { items: [] as ThreadWithMessages[], nextCursor: undefined };
+
+      const threadIds = itemsOnly.map((c) => c.id);
+      const msgs = await db.query.threadMessages.findMany({
+        where: inArray(threadMessages.threadId, threadIds),
+        orderBy: (m, { asc }) => [asc(m.createdAt)],
+      });
+
+      const grouped = new Map<
+        string,
+        Array<typeof threadMessages.$inferSelect>
+      >();
+      for (const m of msgs) {
+        const list = grouped.get(m.threadId) ?? [];
+        list.push(m);
+        grouped.set(m.threadId, list);
+      }
+
+      const items: ThreadWithMessages[] = itemsOnly.map((c) => {
+        const list = grouped.get(c.id) ?? [];
+        const limited = perThreadMessageLimit
+          ? list.slice(Math.max(0, list.length - perThreadMessageLimit))
+          : list;
+        return { ...c, messages: limited } as ThreadWithMessages;
+      });
+
+      const next = rows.length > limit ? rows[limit - 1] : undefined;
+      const nextCursor =
+        next && next.updatedAt
+          ? { updatedAt: next.updatedAt.toISOString(), id: next.id }
+          : undefined;
+
+      return { items, nextCursor };
+    }),
   getChatById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

@@ -132,6 +132,11 @@ router.post("/", async (c) => {
         parentMessageId: previousMessage?.id ? previousMessage?.id : "",
         version: 1,
       });
+      // bump thread.updatedAt so updated ordering reflects new activity
+      await db
+        .update(thread)
+        .set({ updatedAt: new Date() })
+        .where(eq(thread.id, providedThreadId));
     }
 
     let providerError: { status?: string; message?: string } | undefined;
@@ -154,6 +159,11 @@ router.post("/", async (c) => {
           parentMessageId: userMessage.id,
           version: 1,
         });
+        // ensure updatedAt is bumped after assistant finishes
+        await db
+          .update(thread)
+          .set({ updatedAt: new Date() })
+          .where(eq(thread.id, providedThreadId));
       },
       experimental_transform: smoothStream({
         chunking: "word",
@@ -175,6 +185,11 @@ router.post("/", async (c) => {
           parentMessageId: userMessage.id,
           version: 1,
         });
+        // also bump updatedAt on abort to reflect activity
+        await db
+          .update(thread)
+          .set({ updatedAt: new Date() })
+          .where(eq(thread.id, providedThreadId));
       },
       onError: (error: any) => {
         try {

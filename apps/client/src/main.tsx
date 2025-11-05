@@ -24,14 +24,12 @@ function Root() {
 }
 
 export function NewChatElement() {
-  const { activeThreadId, newConversationKey } = useUIChat();
-  const resolvedNewConversationKey = activeThreadId ?? newConversationKey;
-  return <NewChat key={resolvedNewConversationKey} />;
+  return <NewChat key={crypto.randomUUID()} />;
 }
 
 export function ChatPreviewElement() {
-  const { activeThreadId } = useUIChat();
-  return <ChatPreview key={activeThreadId ?? undefined} />;
+  const { activeChatSession } = useUIChat();
+  return <ChatPreview key={activeChatSession?.id ?? undefined} />;
 }
 
 const routeList = [
@@ -42,8 +40,8 @@ const routeList = [
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Root />,
     children: routeList,
+    element: <Root />,
   },
 ]);
 

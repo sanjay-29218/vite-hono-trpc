@@ -3,19 +3,10 @@ import ChatComposer from "./ChatComposer";
 import { useUIChat } from "@/providers/ChatProvider";
 import HomeSuggestions from "./HomeSuggestions";
 import { useNavigate } from "react-router";
-import type { RouterOutputs } from "@/utils/trpc";
+import ChatSession from "./ChatSession";
 
 export default function NewChat() {
-  const {
-    sendText,
-    stopResponse,
-    model,
-    setModel,
-    setChatMessages,
-    setActiveThreadId,
-    setChats,
-    chats,
-  } = useUIChat();
+  const { chatSessions, setChatSessions } = useUIChat();
   const [composerInput, setComposerInput] = useState("");
   const [isHomeSuggestionsVisible, setIsHomeSuggestionsVisible] =
     useState(true);
@@ -23,29 +14,24 @@ export default function NewChat() {
 
   const onSend = useCallback(
     (inputMessage: string) => {
-      // Hide suggestions immediately to avoid flicker before navigation
       setIsHomeSuggestionsVisible(false);
       const text = (inputMessage ?? "").trim();
       if (text.length === 0) return;
 
       const newId = crypto.randomUUID();
-      const newChat: RouterOutputs["chat"]["getChats"][number] = {
-        id: newId,
-        title: "New Chat",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: "new",
-      };
-      const newChats = [newChat, ...chats];
-      setChats(newChats);
-      // Ensure provider state is reset and active thread is set before first send
-      setChatMessages([]);
-      setActiveThreadId(newId);
+      const newSession = new ChatSession(
+        newId,
+        [],
+        "New Chat",
+        "gemini-2.5-flash",
+        undefined,
+        true
+      );
+      newSession.setPendingMessage(text);
+      setChatSessions([newSession, ...chatSessions]);
       void navigate(`/chat/${newId}`, { replace: true });
-
-      void sendText(inputMessage, { threadId: newId });
     },
-    [sendText, navigate, setChatMessages, setActiveThreadId, chats, setChats]
+    [navigate, setChatSessions, chatSessions]
   );
 
   useEffect(() => {
@@ -66,12 +52,10 @@ export default function NewChat() {
       )}
       <ChatComposer
         onSend={onSend}
-        model={model}
-        onModelChange={(m) => setModel(m)}
+        model={"gemini-2.5-flash"}
+        onModelChange={() => {}}
         onInputChange={setComposerInput}
-        onStopResponse={() => {
-          void stopResponse();
-        }}
+        onStopResponse={() => {}}
         status={"ready"}
       />
     </div>

@@ -119,7 +119,7 @@ function LazyHighlightedBlock({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [Highlighter, setHighlighter] = useState<
-    ((props: any) => JSX.Element) | null
+    ((props: any) => React.ReactNode) | null
   >(null);
   const [themeStyle, setThemeStyle] = useState<any>(null);
   const [expanded, setExpanded] = useState(false);

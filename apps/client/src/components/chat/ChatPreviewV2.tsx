@@ -1,11 +1,17 @@
 import { useCallback, useRef } from "react";
-import { observer } from "mobx-react-lite";
 import ChatComposer from "./ChatComposer";
 import ChatMessageWrapper from "./ChatContainer";
-import { useUIChat } from "@/providers/ChatProvider";
+import type { ChatApi } from "./ChatV2";
+import type { UIMessage } from "ai";
 
-const ChatPreview = observer(function ChatPreview() {
-  const { activeChatSession } = useUIChat();
+interface ChatPreviewV2Props {
+  chatApi?: ChatApi;
+  messages: UIMessage[];
+}
+export default function ChatPreviewV2({
+  chatApi,
+  messages,
+}: ChatPreviewV2Props) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -14,41 +20,39 @@ const ChatPreview = observer(function ChatPreview() {
     el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
+  if (!chatApi) return null;
+
   const onSend = useCallback(
     (inputMessage: string) => {
       const text = (inputMessage ?? "").trim();
       if (text.length === 0) return;
-      void activeChatSession?.chatApi?.send(inputMessage);
+      // Optimistically show the user message immediately for great UX
+      chatApi.send(inputMessage);
       // Always snap to bottom after sending
       setTimeout(() => {
         scrollToBottom("smooth");
       }, 100);
     },
-    [scrollToBottom, activeChatSession]
+    [scrollToBottom, chatApi]
   );
-  console.log("activeChatSession", activeChatSession?.chatApi);
 
   return (
     <div className="relative flex h-full flex-col justify-between p-4">
       <ChatMessageWrapper
-        messages={activeChatSession?.messages ?? []}
-        status={activeChatSession?.status ?? "ready"}
+        messages={messages}
+        status={chatApi.status}
         onScrollToBottom={scrollToBottom}
         scrollContainerRef={scrollContainerRef}
       />
       <ChatComposer
         onSend={onSend}
-        model={activeChatSession?.model ?? "gemini-2.5-flash"}
-        onModelChange={(m) => {
-          activeChatSession?.setModel(m ?? "gemini-2.5-flash");
-        }}
+        model={"gemini-2.5-flash"}
+        onModelChange={(m) => {}}
         onStopResponse={() => {
-          void activeChatSession?.chatApi?.stop();
+          chatApi.stop();
         }}
-        status={activeChatSession?.status ?? "ready"}
+        status={chatApi.status}
       />
     </div>
   );
-});
-
-export default ChatPreview;
+}

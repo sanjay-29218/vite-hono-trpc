@@ -12,11 +12,11 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip } from "../ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUIChat } from "@/providers/ChatProvider";
 import { type ChatStatus } from "ai";
 import { ALL_PROVIDER_META } from "@/lib/ai-providers";
 import { createAuthClient } from "better-auth/react";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/utils/trpc";
 
 const { useSession } = createAuthClient();
 interface ChatComposerProps {
@@ -148,7 +148,12 @@ interface ChatModelSelectorProps {
 
 const ChatModelSelector = (props: ChatModelSelectorProps) => {
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
-  const { apiKeys, apiKeysLoading } = useUIChat();
+  const { data: session } = useSession();
+
+  const { data: apiKeys, isPending: isApiKeysPending } =
+    trpc.apiKey.listApiKeys.useQuery(undefined, {
+      enabled: !!session,
+    });
 
   const availableModels = useMemo(() => {
     const models: { key: string; name: string; providerName: string }[] = [];
@@ -191,7 +196,7 @@ const ChatModelSelector = (props: ChatModelSelectorProps) => {
           </Button>
         </PopoverTrigger>
         <PopoverContent>
-          {apiKeysLoading ? (
+          {isApiKeysPending ? (
             <div className="space-y-2">
               <Skeleton className="h-5 w-32" />
               <Skeleton className="h-5 w-40" />
