@@ -40,7 +40,7 @@ const { useSession } = authClient;
 const ChatSidebar = observer(function ChatSidebar() {
   const router = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { data: session } = useSession();
+  const { data: session, isPending: isSessionLoading } = useSession();
   const user = session?.user;
 
   return (
@@ -78,7 +78,7 @@ const ChatSidebar = observer(function ChatSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Chats</SidebarGroupLabel>
           <SidebarGroupContent>
-            <ChatList user={user ?? null} />
+            <ChatList user={user ?? null} isSessionLoading={isSessionLoading} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -168,7 +168,13 @@ const ChatSidebar = observer(function ChatSidebar() {
   );
 });
 
-const ChatList = observer(function ChatList({ user }: { user: User | null }) {
+const ChatList = observer(function ChatList({
+  user,
+  isSessionLoading,
+}: {
+  user: User | null;
+  isSessionLoading: boolean;
+}) {
   const {
     chatSessions,
     isChatsLoading,
@@ -183,7 +189,12 @@ const ChatList = observer(function ChatList({ user }: { user: User | null }) {
     open: boolean;
   } | null>(null);
 
-  if (!user) {
+  if (
+    !isSessionLoading &&
+    !user &&
+    !isChatsLoading &&
+    chatSessions.length === 0
+  ) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
@@ -207,7 +218,7 @@ const ChatList = observer(function ChatList({ user }: { user: User | null }) {
         </>
       )}
 
-      {chatSessions.length === 0 && (
+      {chatSessions.length === 0 && !isChatsLoading && (
         <SidebarMenuItem>
           <SidebarMenuButton>No chats yet</SidebarMenuButton>
         </SidebarMenuItem>

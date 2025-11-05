@@ -25,7 +25,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
     trpc.chat.getChatsWithMessagesInfinite.useInfiniteQuery(
       {
-        limit: 10,
+        limit: 30,
       },
       {
         getNextPageParam: (last) => last.nextCursor ?? undefined,
