@@ -1,17 +1,23 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Element } from "hast";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import {
+  type ComponentProps,
   createContext,
+  type HTMLAttributes,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
+import { type BundledLanguage, codeToHtml, type ShikiTransformer } from "shiki";
+
+type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
+  code: string;
+  language: BundledLanguage;
+  showLineNumbers?: boolean;
+};
 
 type CodeBlockContextType = {
   code: string;
@@ -21,12 +27,49 @@ const CodeBlockContext = createContext<CodeBlockContextType>({
   code: "",
 });
 
-export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
-  code: string;
-  language: string;
-  showLineNumbers?: boolean;
-  children?: ReactNode;
+const lineNumberTransformer: ShikiTransformer = {
+  name: "line-numbers",
+  line(node: Element, line: number) {
+    node.children.unshift({
+      type: "element",
+      tagName: "span",
+      properties: {
+        className: [
+          "inline-block",
+          "min-w-10",
+          "mr-4",
+          "text-right",
+          "select-none",
+          "text-muted-foreground",
+        ],
+      },
+      children: [{ type: "text", value: String(line) }],
+    });
+  },
 };
+
+export async function highlightCode(
+  code: string,
+  language: BundledLanguage,
+  showLineNumbers = false
+) {
+  const transformers: ShikiTransformer[] = showLineNumbers
+    ? [lineNumberTransformer]
+    : [];
+
+  return await Promise.all([
+    codeToHtml(code, {
+      lang: language,
+      theme: "one-light",
+      transformers,
+    }),
+    codeToHtml(code, {
+      lang: language,
+      theme: "one-dark-pro",
+      transformers,
+    }),
+  ]);
+}
 
 export const CodeBlock = ({
   code,
@@ -35,28 +78,55 @@ export const CodeBlock = ({
   className,
   children,
   ...props
-}: CodeBlockProps) => (
-  <CodeBlockContext.Provider value={{ code }}>
-    <div
-      className={cn(
-        "relative w-full overflow-hidden rounded-md border bg-background text-foreground",
-        className
-      )}
-      {...props}
-    >
-      <LazyHighlightedBlock
-        code={code}
-        language={language}
-        showLineNumbers={showLineNumbers}
-      />
-      {children && (
-        <div className="absolute top-2 right-2 flex items-center gap-2">
-          {children}
+}: CodeBlockProps) => {
+  const [html, setHtml] = useState<string>("");
+  const [darkHtml, setDarkHtml] = useState<string>("");
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
+      if (!mounted.current) {
+        setHtml(light);
+        setDarkHtml(dark);
+        mounted.current = true;
+      }
+    });
+
+    return () => {
+      mounted.current = false;
+    };
+  }, [code, language, showLineNumbers]);
+
+  return (
+    <CodeBlockContext.Provider value={{ code }}>
+      <div
+        className={cn(
+          "group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
+          className
+        )}
+        {...props}
+      >
+        <div className="relative">
+          <div
+            className="overflow-hidden dark:hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+          <div
+            className="hidden overflow-hidden dark:block [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
+            dangerouslySetInnerHTML={{ __html: darkHtml }}
+          />
+          {children && (
+            <div className="absolute top-2 right-2 flex items-center gap-2">
+              {children}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  </CodeBlockContext.Provider>
-);
+      </div>
+    </CodeBlockContext.Provider>
+  );
+};
 
 export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
   onCopy?: () => void;
@@ -76,7 +146,7 @@ export const CodeBlockCopyButton = ({
   const { code } = useContext(CodeBlockContext);
 
   const copyToClipboard = async () => {
-    if (typeof window === "undefined" || !navigator.clipboard.writeText) {
+    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
       onError?.(new Error("Clipboard API not available"));
       return;
     }
@@ -105,114 +175,3 @@ export const CodeBlockCopyButton = ({
     </Button>
   );
 };
-
-// Internal: Lazy load highlighter only when visible and render a single theme
-function LazyHighlightedBlock({
-  code,
-  language,
-  showLineNumbers,
-}: {
-  code: string;
-  language: string;
-  showLineNumbers: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [Highlighter, setHighlighter] = useState<
-    ((props: any) => React.ReactNode) | null
-  >(null);
-  const [themeStyle, setThemeStyle] = useState<any>(null);
-  const [expanded, setExpanded] = useState(false);
-
-  const LONG_THRESHOLD = 400;
-  const COLLAPSED_LINES = 250;
-
-  const isLong = useMemo(
-    () => code.split("\n").length > LONG_THRESHOLD,
-    [code]
-  );
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!isVisible || Highlighter) return;
-    // Load on first visibility
-    void (async () => {
-      const [{ Prism }, styles] = await Promise.all([
-        import("react-syntax-highlighter"),
-        import("react-syntax-highlighter/dist/esm/styles/prism"),
-      ]);
-      // Prefer OS scheme; if your app toggles class 'dark', this will still look OK
-      const prefersDark =
-        typeof window !== "undefined" &&
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setHighlighter(() => Prism);
-      setThemeStyle(
-        prefersDark ? (styles as any).oneDark : (styles as any).oneLight
-      );
-    })();
-  }, [Highlighter, isVisible]);
-
-  const displayCode = useMemo(() => {
-    if (!isLong || expanded) return code;
-    const lines = code.split("\n");
-    const sliced = lines.slice(0, COLLAPSED_LINES).join("\n");
-    return `${sliced}\n// … ${lines.length - COLLAPSED_LINES} more lines hidden`;
-  }, [code, isLong, expanded]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      {Highlighter && themeStyle ? (
-        <Highlighter
-          className="overflow-hidden"
-          codeTagProps={{ className: "font-mono text-sm" }}
-          customStyle={{
-            margin: 0,
-            padding: "1rem",
-            fontSize: "0.875rem",
-            background: "hsl(var(--background))",
-            color: "hsl(var(--foreground))",
-          }}
-          language={language}
-          lineNumberStyle={{
-            color: "hsl(var(--muted-foreground))",
-            paddingRight: "1rem",
-            minWidth: "2.5rem",
-          }}
-          showLineNumbers={showLineNumbers}
-          style={themeStyle}
-        >
-          {displayCode}
-        </Highlighter>
-      ) : (
-        <div className="h-24 w-full animate-pulse bg-muted/40" />
-      )}
-
-      {isLong && (
-        <div className="absolute bottom-2 right-2 z-[1]">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setExpanded((s) => !s)}
-          >
-            {expanded ? "Collapse" : "Show more"}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}

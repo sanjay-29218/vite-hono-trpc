@@ -169,7 +169,13 @@ const ChatSidebar = observer(function ChatSidebar() {
 });
 
 const ChatList = observer(function ChatList({ user }: { user: User | null }) {
-  const { chatSessions, isChatsLoading } = useUIChat();
+  const {
+    chatSessions,
+    isChatsLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useUIChat();
   const { deleteChatById, isDeleting } = useChatList();
 
   const [openWarningModal, setOpenWarningModal] = useState<{
@@ -216,21 +222,24 @@ const ChatList = observer(function ChatList({ user }: { user: User | null }) {
       ))}
 
       {/* Infinite scroll sentinel */}
-      {/* {hasNextPage && (
+      {hasNextPage && (
         <SidebarMenuItem>
-          <div ref={sentinelRef} className="w-full px-2 py-2">
+          <div className="w-full px-2 py-2">
             {isFetchingNextPage ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Loading more...
               </div>
             ) : (
-              <div className="text-center text-xs text-muted-foreground">
+              <div
+                className="text-center text-xs text-muted-foreground"
+                onClick={() => void fetchNextPage()}
+              >
                 Scroll to load more
               </div>
             )}
           </div>
         </SidebarMenuItem>
-      )} */}
+      )}
 
       <WarningModal
         title="Delete Chat"

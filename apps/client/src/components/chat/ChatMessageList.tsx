@@ -115,7 +115,7 @@ export function AssistantMarkdown({ content }: { content: string }) {
           <CodeBlock
             key={idx}
             code={seg.code}
-            language={seg.lang || "text"}
+            language={(seg.lang as any) || "text"}
             showLineNumbers
           >
             <CodeBlockCopyButton />

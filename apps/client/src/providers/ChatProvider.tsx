@@ -10,6 +10,9 @@ interface ChatContextType {
   setChatSessions: (chatSessions: ChatSession[]) => void;
   isChatsLoading: boolean;
   refetchChats: () => void;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -19,7 +22,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const utils = trpc.useUtils();
 
-  const { data, isLoading } =
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
     trpc.chat.getChatsWithMessagesInfinite.useInfiniteQuery(
       {
         limit: 10,
@@ -70,6 +73,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         refetchChats: () => {
           void utils.chat.getChatsWithMessagesInfinite.invalidate();
         },
+        hasNextPage,
+        isFetchingNextPage,
+        fetchNextPage,
       }}
     >
       <ChatSessionManager />
