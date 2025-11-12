@@ -109,66 +109,101 @@ export default class ChatSession {
     const lastSegment = this.streamingContent.at(-1);
     // this will get the chunk of content that is not yet in the streaming content
     const chunk = content.slice(lastSegment?.end ?? 0);
-    const codeFenceStartRegex = /(^|\n)```([\w+\-.]*)?[\s\n]?$/;
+
+    if (chunk.length === 0) return;
+
+    // Fixed regexes: starting fence has lang or newline, ending fence is just ```
+    const codeFenceStartRegex = /(^|\n)```[\w+\-.]*\s*\n/;
     const isCodeBlockStarting = codeFenceStartRegex.test(chunk);
-    const isCodeBlockCompleted = /```[\s\n]*$/.test(chunk);
-    const langMatch = chunk.match(/```(\w+)?/);
-    const lang = langMatch?.[1] ?? undefined;
+    const codeFenceEndRegex = /(^|\n)```\s*$/;
+    const isCodeBlockCompleted = codeFenceEndRegex.test(chunk);
+
+    // Extract language - match the full fence including lang
+    const langMatch = chunk.match(/```([\w+\-.]*)\s*\n/);
+    const lang = langMatch?.[1] || undefined;
 
     // Handle initial case when array is empty
     if (!lastSegment) {
-      this.streamingContent.push({
-        type: isCodeBlockStarting ? "code" : "text",
-        lang: isCodeBlockStarting ? lang : undefined,
-        start: 0,
-        end: chunk.length,
-      });
+      if (isCodeBlockStarting) {
+        // Strip the fence marker from the chunk
+        const codeContent = chunk.replace(/^(.*?\n)?```[\w+\-.]*\s*\n/, "");
+        this.streamingContent.push({
+          type: "code",
+          code: codeContent,
+          lang: lang,
+          start: 0,
+          end: chunk.length,
+          id: crypto.randomUUID(),
+        });
+      } else {
+        this.streamingContent.push({
+          type: "text",
+          text: chunk,
+          start: 0,
+          end: chunk.length,
+          id: crypto.randomUUID(),
+        });
+      }
       return;
     }
 
+    // Text Continuation Case
     // if last segment is text and not a code block, concatenate the chunk
     if (lastSegment?.type === "text" && !isCodeBlockStarting) {
-      lastSegment.text += chunk;
+      lastSegment.text = (lastSegment.text ?? "") + chunk;
       lastSegment.start = lastSegment.start ?? 0;
       lastSegment.end = (lastSegment.end ?? 0) + chunk.length;
       return;
     }
 
-    // if last segment is text or code and the chunk is a code block starting, create a new code block segment
-    if (
-      (lastSegment?.type === "text" && isCodeBlockStarting) ||
-      (lastSegment?.type === "code" && isCodeBlockStarting)
-    ) {
-      debugger;
-      const newSegment: StreamingContent = {
+    // New Code Block Starting Case
+    // if last segment is text and the chunk is a code block starting, create a new code block segment
+    if (lastSegment?.type === "text" && isCodeBlockStarting) {
+      // Strip the fence marker
+      const codeContent = chunk.replace(/^(.*?\n)?```[\w+\-.]*\s*\n/, "");
+      this.streamingContent.push({
         type: "code",
-        code: chunk,
+        code: codeContent,
         lang: lang,
         start: lastSegment.end ?? 0,
         end: (lastSegment.end ?? 0) + chunk.length,
         id: crypto.randomUUID(),
-      };
-      this.streamingContent.push(newSegment);
+      });
       return;
     }
 
-    // if last segment is code block and the chunk is not a code block, this means it is continuation of the code block, concatenate the chunk
-    if (lastSegment?.type === "code" && !lastSegment.isCodeCompleted) {
-      lastSegment.code += chunk;
+    // Code Block Continuation Case
+    // if last segment is code block and the chunk is not closing, concatenate the chunk
+    if (
+      lastSegment?.type === "code" &&
+      !lastSegment.isCodeCompleted &&
+      !isCodeBlockCompleted
+    ) {
+      lastSegment.code = (lastSegment.code ?? "") + chunk;
       lastSegment.start = lastSegment.start ?? 0;
       lastSegment.end = (lastSegment.end ?? 0) + chunk.length;
-      lastSegment.isCodeCompleted = false;
       return;
     }
 
-    // if last segment is code and it is completed and the chunk is text block,
-    // create a new text segment
+    // Code Block Closing Case
+    // if last segment is code block and the chunk is closing the code block
+    if (lastSegment?.type === "code" && isCodeBlockCompleted) {
+      // Strip the closing fence marker
+      const codeContent = chunk.replace(/```\s*$/, "");
+      lastSegment.code = (lastSegment.code ?? "") + codeContent;
+      lastSegment.start = lastSegment.start ?? 0;
+      lastSegment.end = (lastSegment.end ?? 0) + chunk.length;
+      lastSegment.isCodeCompleted = true;
+      return;
+    }
+
+    // New Text After Completed Code Case
+    // if last segment is code and it is completed and the chunk is text block
     if (
       lastSegment?.type === "code" &&
       lastSegment.isCodeCompleted &&
       !isCodeBlockStarting
     ) {
-      debugger;
       this.streamingContent.push({
         type: "text",
         text: chunk,
@@ -179,14 +214,23 @@ export default class ChatSession {
       return;
     }
 
-    // if last segment is code and it is completed and the new chunk is again a code block,
-
-    // if last segment is code block and the chunk is a code block, this means it is closing the code block,
-    if (lastSegment?.type === "code" && isCodeBlockCompleted) {
-      lastSegment.code += chunk;
-      lastSegment.start = lastSegment.start ?? 0;
-      lastSegment.end = (lastSegment.end ?? 0) + chunk.length;
-      lastSegment.isCodeCompleted = true;
+    // New Code Block After Completed Code Case
+    // if last segment is code and it is completed and the new chunk is again a code block
+    if (
+      lastSegment?.type === "code" &&
+      lastSegment.isCodeCompleted &&
+      isCodeBlockStarting
+    ) {
+      // Strip the fence marker
+      const codeContent = chunk.replace(/^(.*?\n)?```[\w+\-.]*\s*\n/, "");
+      this.streamingContent.push({
+        type: "code",
+        code: codeContent,
+        lang: lang,
+        start: lastSegment.end ?? 0,
+        end: (lastSegment.end ?? 0) + chunk.length,
+        id: crypto.randomUUID(),
+      });
       return;
     }
   }
