@@ -61,6 +61,7 @@ const ChatSessionController = observer(function ChatSessionController({
     messages: chat.messages,
     transport,
     onFinish: () => {
+      chat.clearStreamingContent();
       if (chat.isNew) {
         void refetchChats();
         chat.setIsNew(false);
@@ -68,11 +69,13 @@ const ChatSessionController = observer(function ChatSessionController({
     },
     onError: (error) => {
       console.error(error);
+      chat.clearStreamingContent();
     },
   });
 
   // Initialize chatApi when chat session is created or dependencies change
   useEffect(() => {
+    if (chat.chatApi) return;
     chat.init(
       messages,
       status,
@@ -84,6 +87,7 @@ const ChatSessionController = observer(function ChatSessionController({
           });
         },
         stop: () => {
+          chat.clearStreamingContent();
           void stop();
         },
         status,
@@ -100,14 +104,20 @@ const ChatSessionController = observer(function ChatSessionController({
         parts: [{ type: "text", text: messageToSend }],
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chat.id, sendMessage, stop]);
+  }, [sendMessage, stop, chat, messages, status]);
 
   // Sync messages and status back to the session
   useEffect(() => {
     chat.setMessages(messages);
     chat.setStatus(status);
   }, [messages, chat, status]);
+
+  // Reset incremental streaming segments at the start of a new assistant response
+  useEffect(() => {
+    if (status === "submitted") {
+      chat.clearStreamingContent();
+    }
+  }, [status, chat]);
 
   return null; // No UI, just manages the hook
 });

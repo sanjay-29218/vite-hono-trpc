@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import ChatComposer from "./ChatComposer";
 import ChatMessageWrapper from "./ChatContainer";
@@ -26,7 +26,14 @@ const ChatPreview = observer(function ChatPreview() {
     },
     [scrollToBottom, activeChatSession]
   );
-  console.log("activeChatSession", activeChatSession?.chatApi);
+
+  useEffect(() => {
+    if (activeChatSession) {
+      setTimeout(() => {
+        scrollToBottom("smooth");
+      }, 100);
+    }
+  }, [activeChatSession, scrollToBottom]);
 
   return (
     <div className="relative flex h-full flex-col justify-between p-4">

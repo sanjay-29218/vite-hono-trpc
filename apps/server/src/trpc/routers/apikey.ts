@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../server";
 import { apiKey } from "../../db/schema";
+import { TRPCError } from "@trpc/server";
 export const apiKeyRouter = createTRPCRouter({
   listApiKeys: protectedProcedure.query(async ({ ctx }) => {
     const { db, session } = await ctx;
     const userId = session?.user?.id;
+    if (!userId) throw new TRPCError({ code: "UNAUTHORIZED" });
     const rows = await db
       .select()
       .from(apiKey)

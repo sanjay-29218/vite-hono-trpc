@@ -1,12 +1,12 @@
 import type { ChatStatus, UIMessage } from "ai";
 import { Message, MessageContent } from "@/components/ai-elements/message";
-import { Response } from "@/components/ai-elements/response";
-import {
-  CodeBlock,
-  CodeBlockCopyButton,
-} from "@/components/ai-elements/code-block";
-import { memo } from "react";
-import isEqual from "lodash/isEqual";
+import { memo, useEffect, useRef, useState } from "react";
+import { Response } from "../ai-elements/response";
+import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
+import type { StreamingContent } from "./ChatSession";
+import { observer } from "mobx-react-lite";
+import type { BundledLanguage } from "shiki";
+import { useUIChat } from "@/providers/ChatProvider";
 
 interface ChatMessageListProps {
   messages: UIMessage[];
@@ -27,15 +27,8 @@ function ChatMessageList(props: ChatMessageListProps) {
   );
 }
 
-export default memo(ChatMessageList, (prevProps, nextProps) => {
-  // Fast path: referentially equal messages prevents re-render.
-  if (prevProps.messages === nextProps.messages) {
-    return true;
-  }
-  // Fallback: deep equality to avoid unnecessary rerenders if parent creates
-  // a new array instance without content change.
-  return isEqual(prevProps.messages, nextProps.messages);
-});
+// Avoid deep equality on large message arrays; it's very expensive during streaming.
+export default memo(ChatMessageList);
 
 ChatMessageList.displayName = "ChatMessageList";
 
@@ -60,37 +53,40 @@ const ChatMessage = memo(
           {isUser ? (
             <div className="whitespace-pre-wrap">{text}</div>
           ) : (
+            // <Markdown content={text} />
             <AssistantMarkdown content={text} />
           )}
         </MessageContent>
       </Message>
     );
   },
-  (prevProps, nextProps) =>
-    prevProps.message === nextProps.message ||
-    isEqual(prevProps.message, nextProps.message)
+  // Rely on referential equality; messages are keyed by id in the list
+  (prevProps, nextProps) => prevProps.message === nextProps.message
 );
 
 ChatMessage.displayName = "ChatMessage";
 
 // Parse markdown to extract fenced code blocks and render them with CodeBlock
-export function AssistantMarkdown({ content }: { content: string }) {
-  const segments: Array<
-    | { type: "text"; text: string }
-    | { type: "code"; code: string; lang?: string }
-  > = [];
-
+const AssistantMarkdown = observer(function AssistantMarkdown({
+  content,
+}: {
+  content: string;
+}) {
+  const segments: Array<StreamingContent> = [];
   const fence = /```([\w+\-.]*)?\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = fence.exec(content)) !== null) {
+    // here exec method finds the first match and sets the index to the end of the match
     const full = match[0];
     const langRaw = match[1] ?? undefined;
     const rawCode = match[2] ?? "";
     const start = match.index;
+    // when new text is starting
     if (start > lastIndex) {
       segments.push({ type: "text", text: content.slice(lastIndex, start) });
     }
+    // when code is continuing
     segments.push({
       type: "code",
       code: rawCode.replace(/\n$/, ""),
@@ -98,6 +94,7 @@ export function AssistantMarkdown({ content }: { content: string }) {
     });
     lastIndex = start + full.length;
   }
+  // no remaining code block
   if (lastIndex < content.length) {
     segments.push({ type: "text", text: content.slice(lastIndex) });
   }
@@ -114,8 +111,8 @@ export function AssistantMarkdown({ content }: { content: string }) {
         ) : (
           <CodeBlock
             key={idx}
-            code={seg.code}
-            language={(seg.lang as any) || "text"}
+            code={seg.code ?? ""}
+            language={((seg.lang as string) || "text") as BundledLanguage}
             showLineNumbers
           >
             <CodeBlockCopyButton />
@@ -124,7 +121,40 @@ export function AssistantMarkdown({ content }: { content: string }) {
       )}
     </div>
   );
-}
+});
+
+export const StreamingMarkdown = observer(function StreamingMarkdown({
+  content,
+}: {
+  content: string;
+}) {
+  const { activeChatSession } = useUIChat();
+
+  useEffect(() => {
+    activeChatSession?.concatStreamingContent(content);
+  }, [content, activeChatSession]);
+
+  console.log("segments", activeChatSession?.streamingContent);
+
+  return (
+    <div className="grid gap-3">
+      {activeChatSession?.streamingContent.map((seg, idx) =>
+        seg.type === "text" ? (
+          <Response key={idx}>{seg.text}</Response>
+        ) : (
+          <CodeBlock
+            key={idx}
+            code={seg.code ?? ""}
+            language={((seg.lang as string) || "text") as BundledLanguage}
+            showLineNumbers
+          >
+            <CodeBlockCopyButton />
+          </CodeBlock>
+        )
+      )}
+    </div>
+  );
+});
 
 function TypingIndicator() {
   return (
@@ -164,12 +194,13 @@ export function AiResponseStreaming({
     );
   }
   if (!isStreamingAssistant) return null;
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex h-full flex-col gap-4 pb-6">
         <Message from="assistant">
           <MessageContent variant="flat">
-            <AssistantMarkdown
+            <StreamingMarkdown
               content={
                 messages
                   ?.map((message) =>
