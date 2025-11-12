@@ -6,12 +6,15 @@ import {
   type ComponentProps,
   createContext,
   type HTMLAttributes,
+  memo,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { type BundledLanguage, codeToHtml, type ShikiTransformer } from "shiki";
+import { debounce } from "lodash";
 
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
@@ -63,70 +66,108 @@ export async function highlightCode(
       theme: "one-light",
       transformers,
     }),
-    codeToHtml(code, {
-      lang: language,
-      theme: "one-dark-pro",
-      transformers,
-    }),
+    // codeToHtml(code, {
+    //   lang: language,
+    //   theme: "one-dark-pro",
+    //   transformers,
+    // }),
   ]);
 }
 
-export const CodeBlock = ({
-  code,
-  language,
-  showLineNumbers = false,
-  className,
-  children,
-  ...props
-}: CodeBlockProps) => {
-  const [html, setHtml] = useState<string>("");
-  const [darkHtml, setDarkHtml] = useState<string>("");
-  const mounted = useRef(false);
+export const CodeBlock = memo(
+  ({
+    code,
+    language,
+    showLineNumbers = false,
+    className,
+    children,
+    ...props
+  }: CodeBlockProps) => {
+    const [html, setHtml] = useState<string>("");
+    const mounted = useRef(false);
 
-  useEffect(() => {
-    highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
-      if (!mounted.current) {
-        setHtml(light);
-        setDarkHtml(dark);
-        mounted.current = true;
+    // Debounce highlighting to avoid re-processing on every character change
+    const debouncedHighlight = useMemo(
+      () =>
+        debounce(
+          (
+            codeToHighlight: string,
+            lang: BundledLanguage,
+            showNumbers: boolean
+          ) => {
+            highlightCode(codeToHighlight, lang, showNumbers).then(
+              ([light]) => {
+                if (mounted.current) {
+                  setHtml(light);
+                }
+              }
+            );
+          },
+          150 // Wait 150ms before highlighting
+        ),
+      []
+    );
+
+    useEffect(() => {
+      mounted.current = true;
+      debouncedHighlight(code, language, showLineNumbers);
+
+      return () => {
+        mounted.current = false;
+        debouncedHighlight.cancel();
+      };
+    }, [code, language, showLineNumbers, debouncedHighlight]);
+
+    // Show plain code fallback while debouncing or if HTML not ready
+    const plainCodeFallback = useMemo(() => {
+      if (!html) {
+        return (
+          <pre className="m-0 overflow-auto bg-background p-4 font-mono text-sm text-foreground">
+            <code>{code}</code>
+          </pre>
+        );
       }
-    });
+      return null;
+    }, [html, code]);
 
-    return () => {
-      mounted.current = false;
-    };
-  }, [code, language, showLineNumbers]);
-
-  return (
-    <CodeBlockContext.Provider value={{ code }}>
-      <div
-        className={cn(
-          "group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
-          className
-        )}
-        {...props}
-      >
-        <div className="relative">
-          <div
-            className="overflow-hidden dark:hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-          <div
-            className="hidden overflow-hidden dark:block [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
-            dangerouslySetInnerHTML={{ __html: darkHtml }}
-          />
-          {children && (
-            <div className="absolute top-2 right-2 flex items-center gap-2">
-              {children}
-            </div>
+    return (
+      <CodeBlockContext.Provider value={{ code }}>
+        <div
+          className={cn(
+            "group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
+            className
           )}
+          {...props}
+        >
+          <div className="relative">
+            {plainCodeFallback || (
+              <div
+                className="overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            )}
+            {children && (
+              <div className="absolute top-2 right-2 flex items-center gap-2">
+                {children}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </CodeBlockContext.Provider>
-  );
-};
+      </CodeBlockContext.Provider>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if props actually changed
+    return (
+      prevProps.code === nextProps.code &&
+      prevProps.language === nextProps.language &&
+      prevProps.showLineNumbers === nextProps.showLineNumbers
+    );
+  }
+);
+
+CodeBlock.displayName = "CodeBlock";
 
 export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
   onCopy?: () => void;

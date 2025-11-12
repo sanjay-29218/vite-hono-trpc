@@ -1,6 +1,6 @@
 import type { ChatStatus, UIMessage } from "ai";
 import { Message, MessageContent } from "@/components/ai-elements/message";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect } from "react";
 import { Response } from "../ai-elements/response";
 import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
 import type { StreamingContent } from "./ChatSession";
@@ -134,19 +134,17 @@ export const StreamingMarkdown = observer(function StreamingMarkdown({
     activeChatSession?.concatStreamingContent(content);
   }, [content, activeChatSession]);
 
-  console.log("segments", activeChatSession?.streamingContent);
-
   return (
     <div className="grid gap-3">
-      {activeChatSession?.streamingContent.map((seg, idx) =>
+      {activeChatSession?.streamingContent.map((seg) =>
         seg.type === "text" ? (
-          <Response key={idx}>{seg.text}</Response>
+          <Response key={seg.id || seg.start}>{seg.text}</Response>
         ) : (
           <CodeBlock
-            key={idx}
+            key={seg.id || seg.start}
             code={seg.code ?? ""}
             language={((seg.lang as string) || "text") as BundledLanguage}
-            showLineNumbers
+            showLineNumbers={seg.isCodeCompleted ?? false}
           >
             <CodeBlockCopyButton />
           </CodeBlock>

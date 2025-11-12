@@ -115,12 +115,20 @@ export default class ChatSession {
     // Fixed regexes: starting fence has lang or newline, ending fence is just ```
     const codeFenceStartRegex = /(^|\n)```[\w+\-.]*\s*\n/;
     const isCodeBlockStarting = codeFenceStartRegex.test(chunk);
-    const codeFenceEndRegex = /(^|\n)```\s*$/;
-    const isCodeBlockCompleted = codeFenceEndRegex.test(chunk);
 
-    // Extract language - match the full fence including lang
-    const langMatch = chunk.match(/```([\w+\-.]*)\s*\n/);
-    const lang = langMatch?.[1] || undefined;
+    let isCodeBlockCompleted = false;
+    if (lastSegment?.type === "code") {
+      // only check for code block completion if the last segment is a code block
+      const codeFenceEndRegex = /(^|\n)```\s*$/;
+      isCodeBlockCompleted = codeFenceEndRegex.test(chunk);
+    }
+    let lang: string | undefined;
+    if (isCodeBlockStarting) {
+      // Extract language - match the full fence including lang
+
+      const langMatch = chunk.match(/```([\w+\-.]*)\s*\n/);
+      lang = langMatch?.[1] || undefined;
+    }
 
     // Handle initial case when array is empty
     if (!lastSegment) {
