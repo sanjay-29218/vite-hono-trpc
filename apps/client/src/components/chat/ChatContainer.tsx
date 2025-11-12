@@ -121,5 +121,3 @@ const ScrollToBottomButton = memo(
 );
 
 ScrollToBottomButton.displayName = "ScrollToBottomButton";
-
-ScrollToBottomButton.displayName = "ScrollToBottomButton";
