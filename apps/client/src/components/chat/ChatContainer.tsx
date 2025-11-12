@@ -1,6 +1,14 @@
 import { type ChatStatus, type UIMessage } from "ai";
-import ChatMessageList, { AiResponseStreaming } from "./ChatMessageList";
-import { memo, useCallback, useLayoutEffect, useMemo, useState } from "react";
+import ChatMessageList from "./ChatMessageList";
+import { AiResponseStreaming } from "./StreamingResponse";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
 
@@ -15,10 +23,27 @@ export default function ChatMessageWrapper(props: ChatContainerProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const { messages, status, onScrollToBottom, scrollContainerRef } = props;
 
-  const prevMessages = useMemo(
-    () => (status === "streaming" ? messages.slice(0, -1) : messages),
-    [messages, status]
-  );
+  // Keep a stable reference to the previous messages array
+  const prevMessagesRef = useRef<UIMessage[]>([]);
+  const prevMessageIdsRef = useRef<string>("");
+
+  const prevMessages = useMemo(() => {
+    const isStreaming = status === "streaming" && messages.length > 0;
+    const messagesToUse = isStreaming ? messages.slice(0, -1) : messages;
+    const currentMessageIds = messagesToUse.map((m) => m.id).join(",");
+
+    // Only create a new array if message IDs actually changed
+    if (currentMessageIds !== prevMessageIdsRef.current) {
+      prevMessageIdsRef.current = currentMessageIds;
+      prevMessagesRef.current = messagesToUse;
+      return messagesToUse;
+    }
+
+    // If IDs haven't changed but we're streaming, the last message is updating
+    // Return the stable reference to prevent re-renders of the list
+    // The message objects themselves should maintain referential equality
+    return prevMessagesRef.current;
+  }, [messages, status]);
 
   const handleScrollToBottom = useCallback(() => {
     onScrollToBottom();
