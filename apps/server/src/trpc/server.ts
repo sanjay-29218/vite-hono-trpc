@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { createTRPCContext } from "./context";
+import { createTRPCContext } from "./context.js";
 
 const t = initTRPC.context<ReturnType<typeof createTRPCContext>>().create();
 export const createTRPCRouter = t.router;

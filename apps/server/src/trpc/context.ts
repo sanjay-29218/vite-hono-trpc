@@ -1,7 +1,7 @@
 import type { Context as HonoContext } from "hono";
 import type { BlankEnv, BlankInput } from "hono/types";
-import { db } from "../db/index";
-import { auth } from "../lib/auth-server";
+import { db } from "../db/index.js";
+import { auth } from "../lib/auth-server.js";
 export async function createTRPCContext(
   c?: HonoContext<BlankEnv, "/trpc/*", BlankInput>
 ) {

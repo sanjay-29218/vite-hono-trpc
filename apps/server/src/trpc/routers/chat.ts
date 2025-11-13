@@ -1,7 +1,7 @@
 import { eq, inArray, and, or, lt } from "drizzle-orm";
 import { z } from "zod";
-import { thread, threadMessages } from "../../db/schema";
-import { createTRPCRouter, protectedProcedure } from "../server";
+import { thread, threadMessages } from "../../db/schema.js";
+import { createTRPCRouter, protectedProcedure } from "../server.js";
 
 type ThreadWithMessages = typeof thread.$inferSelect & {
   messages: Array<typeof threadMessages.$inferSelect>;

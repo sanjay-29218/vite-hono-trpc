@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { threadMessages } from "../../db/schema";
+import { threadMessages } from "../../db/schema.js";
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
-} from "../server";
+} from "../server.js";
 
 export const messageRouter = createTRPCRouter({
   createMessage: protectedProcedure

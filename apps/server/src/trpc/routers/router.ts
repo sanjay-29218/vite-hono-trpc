@@ -1,7 +1,7 @@
-import { createTRPCRouter } from "../server";
-import { messageRouter } from "./message";
-import { apiKeyRouter } from "./apikey";
-import { chatRouter } from "./chat";
+import { createTRPCRouter } from "../server.js";
+import { messageRouter } from "./message.js";
+import { apiKeyRouter } from "./apikey.js";
+import { chatRouter } from "./chat.js";
 import type { inferRouterInputs } from "@trpc/server";
 import type { inferRouterOutputs } from "@trpc/server";
 

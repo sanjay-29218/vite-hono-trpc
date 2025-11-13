@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { auth } from "@/lib/auth-server";
-import { db } from "@/db";
-import { apiKey, thread, threadMessages } from "../db/schema";
+import { auth } from "../lib/auth-server.js";
+import { db } from "../db/index.js";
+import { apiKey, thread, threadMessages } from "../db/schema.js";
 import {
   streamText,
   convertToModelMessages,
@@ -11,8 +11,8 @@ import {
 } from "ai";
 import { and, eq } from "drizzle-orm";
 import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
-import { ChatSDKError } from "@/lib/error";
-import { postRequestBodySchema } from "@/schema/chat.schema";
+import { ChatSDKError } from "../lib/error.js";
+import { postRequestBodySchema } from "../schema/chat.schema.js";
 
 const ModelMap = {
   "gemini-2.5-flash": google("gemini-2.5-flash"),
