@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import { schema } from "../db/schema.js";
+
 export const auth = betterAuth({
   baseURL: "http://localhost:3000",
   database: drizzleAdapter(db, {
@@ -9,7 +10,6 @@ export const auth = betterAuth({
     schema,
   }),
   // Allow requests from the frontend development server
-  trustedOrigins: ["http://localhost:5173"],
   emailAndPassword: {
     enabled: true,
   },
