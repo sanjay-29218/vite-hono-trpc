@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "@/lib/auth-server";
 import { db } from "@/db";
-import { apiKey, thread, threadMessages } from "@/db/schema";
+import { apiKey, thread, threadMessages } from "../db/schema";
 import {
   streamText,
   convertToModelMessages,
