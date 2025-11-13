@@ -19,14 +19,11 @@ import {
 import { TrashIcon, CopyIcon } from "lucide-react";
 import { trpc } from "@/utils/trpc";
 import { Skeleton } from "../ui/skeleton";
-import { useUIChat } from "@/providers/ChatProvider";
 
 type Provider = ProviderMeta;
 const ALL_PROVIDERS: Provider[] = ALL_PROVIDER_META;
 
 export default function ApiKeySetting() {
-  const { refetchApiKeys } = useUIChat();
-
   const [activeProviderIds, setActiveProviderIds] = useState<string[]>([]);
   const [apiKeysByProviderId, setApiKeysByProviderId] = useState<
     Record<string, string>
@@ -37,6 +34,12 @@ export default function ApiKeySetting() {
   const [apiKeyIdByProviderId, setApiKeyIdByProviderId] = useState<
     Record<string, string>
   >({});
+
+  const {
+    data: apiKeys,
+    isPending,
+    refetch: refetchApiKeys,
+  } = trpc.apiKey.listApiKeys.useQuery();
 
   const { mutate: createApiKey } = trpc.apiKey.createApiKey.useMutation({
     onSuccess: () => {
@@ -53,7 +56,6 @@ export default function ApiKeySetting() {
       refetchApiKeys();
     },
   });
-  const { data: apiKeys, isPending } = trpc.apiKey.listApiKeys.useQuery();
 
   const availableToAdd = useMemo(
     () => ALL_PROVIDERS.filter((p) => !activeProviderIds.includes(p.id)),

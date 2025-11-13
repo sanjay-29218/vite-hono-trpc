@@ -206,5 +206,28 @@ export const chatRouter = createTRPCRouter({
       await db.delete(thread).where(eq(thread.id, id));
       return { id };
     }),
+  updateThreadModel: protectedProcedure
+    .input(z.object({ threadId: z.string(), model: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { session, db } = await ctx;
+      const { id: userId } = session?.user as { id: string };
+      const { threadId, model } = input;
+
+      // Verify the thread belongs to the user
+      const existingThread = await db.query.thread.findFirst({
+        where: eq(thread.id, threadId),
+      });
+
+      if (!existingThread || existingThread.userId !== userId) {
+        throw new Error("Thread not found or unauthorized");
+      }
+
+      await db
+        .update(thread)
+        .set({ model, updatedAt: new Date() })
+        .where(eq(thread.id, threadId));
+
+      return { threadId, model };
+    }),
   //   used for streaming the chat
 });

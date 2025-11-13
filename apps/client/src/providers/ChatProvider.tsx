@@ -45,7 +45,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             parts: [{ type: "text", text: message.content }],
           })),
           chat.title,
-          "gemini-2.5-flash",
+          chat.model ?? "gemini-2.5-flash",
           undefined
         )
     );

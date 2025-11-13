@@ -3,10 +3,12 @@ import { observer } from "mobx-react-lite";
 import ChatComposer from "./ChatComposer";
 import ChatMessageWrapper from "./ChatContainer";
 import { useUIChat } from "@/providers/ChatProvider";
+import { trpc } from "@/utils/trpc";
 
 const ChatPreview = observer(function ChatPreview() {
   const { activeChatSession } = useUIChat();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const updateThreadModel = trpc.chat.updateThreadModel.useMutation();
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollContainerRef.current;
@@ -47,7 +49,15 @@ const ChatPreview = observer(function ChatPreview() {
         onSend={onSend}
         model={activeChatSession?.model ?? "gemini-2.5-flash"}
         onModelChange={(m) => {
-          activeChatSession?.setModel(m ?? "gemini-2.5-flash");
+          const newModel = m ?? "gemini-2.5-flash";
+          activeChatSession?.setModel(newModel);
+          // Update model in database if thread exists
+          if (activeChatSession?.id && !activeChatSession.isNew) {
+            void updateThreadModel.mutate({
+              threadId: activeChatSession.id,
+              model: newModel,
+            });
+          }
         }}
         onStopResponse={() => {
           void activeChatSession?.chatApi?.stop();

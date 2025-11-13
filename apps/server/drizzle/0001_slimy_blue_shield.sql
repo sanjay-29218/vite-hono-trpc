@@ -1,0 +1,1 @@
+ALTER TABLE "thread" ADD COLUMN "model" text NOT NULL DEFAULT 'gemini-2.5-flash';

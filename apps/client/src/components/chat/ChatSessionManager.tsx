@@ -92,7 +92,7 @@ const ChatSessionController = observer(function ChatSessionController({
         },
         status,
       },
-      chat.model ?? "gemini-2.5-flash"
+      chat.model
     );
 
     // If a pending message exists (e.g., from NewChat), send it immediately

@@ -85,6 +85,7 @@ export const verification = pgTable("verification", {
 export const thread = pgTable("thread", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
+  model: text("model").default("gemini-2.5-flash").notNull(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id),

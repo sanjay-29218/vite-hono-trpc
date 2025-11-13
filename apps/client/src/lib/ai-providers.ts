@@ -58,6 +58,10 @@ export const ALL_PROVIDER_META: ProviderMeta[] = [
         key: "gemini-2.5-flash-lite",
         name: "Gemini 2.5 Flash Lite",
       },
+      "gemini-2.5-pro": {
+        key: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
     },
   },
 ];
@@ -67,13 +71,14 @@ export const PROVIDERS = customProvider({
   languageModels: {
     "gemini-2.5-flash": gateway.languageModel("gemini-2.5-flash"),
     "gemini-2.5-flash-lite": gateway.languageModel("gemini-2.5-flash-lite"),
+    "gemini-2.5-pro": gateway.languageModel("gemini-2.5-pro"),
     // "gpt-4o": gateway.languageModel("gpt-4o"),
     // "gpt-4o-mini": gateway.languageModel("gpt-4o-mini"),
   },
 });
 
 export const POPULAR_PROVIDER_IDS = ALL_PROVIDER_META.filter(
-  (p) => p.popular,
+  (p) => p.popular
 ).map((p) => p.id);
 
 export function findProvider(id: string): ProviderMeta | undefined {

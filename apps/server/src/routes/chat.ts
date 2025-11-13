@@ -17,6 +17,7 @@ import { postRequestBodySchema } from "@/schema/chat.schema";
 const ModelMap = {
   "gemini-2.5-flash": google("gemini-2.5-flash"),
   "gemini-2.5-flash-lite": google("gemini-2.5-flash-lite"),
+  "gemini-2.5-pro": google("gemini-2.5-pro"),
 };
 
 const router = new Hono();
@@ -71,6 +72,14 @@ router.post("/", async (c) => {
     });
     const isNewConversation = !conversation;
 
+    // Update model if it has changed for existing conversation
+    if (!isNewConversation && conversation.model !== modelId) {
+      await db
+        .update(thread)
+        .set({ model: modelId, updatedAt: new Date() })
+        .where(eq(thread.id, threadId));
+    }
+
     if (isNewConversation) {
       let generatedTitle: { text: string };
       try {
@@ -105,6 +114,7 @@ router.post("/", async (c) => {
           id: threadId,
           userId: session.user.id,
           title: generatedTitle.text,
+          model: modelId,
         })
         .returning();
       if (!newThread) {

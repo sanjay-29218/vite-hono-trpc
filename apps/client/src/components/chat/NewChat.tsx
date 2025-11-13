@@ -12,6 +12,11 @@ export default function NewChat() {
     useState(true);
   const navigate = useNavigate();
 
+  // Get model from localStorage or use default
+  const [model, setModel] = useState(() => {
+    return localStorage.getItem("selectedModel") || "gemini-2.5-flash";
+  });
+
   const onSend = useCallback(
     (inputMessage: string) => {
       setIsHomeSuggestionsVisible(false);
@@ -23,7 +28,7 @@ export default function NewChat() {
         newId,
         [],
         "New Chat",
-        "gemini-2.5-flash",
+        model,
         undefined,
         true
       );
@@ -31,7 +36,7 @@ export default function NewChat() {
       setChatSessions([newSession, ...chatSessions]);
       void navigate(`/chat/${newId}`, { replace: true });
     },
-    [navigate, setChatSessions, chatSessions]
+    [navigate, setChatSessions, chatSessions, model]
   );
 
   useEffect(() => {
@@ -52,8 +57,11 @@ export default function NewChat() {
       )}
       <ChatComposer
         onSend={onSend}
-        model={"gemini-2.5-flash"}
-        onModelChange={() => {}}
+        model={model}
+        onModelChange={(newModel) => {
+          setModel(newModel);
+          localStorage.setItem("selectedModel", newModel);
+        }}
         onInputChange={setComposerInput}
         onStopResponse={() => {}}
         status={"ready"}
