@@ -1,11 +1,27 @@
 {
+  /**
+   * Root TypeScript Configuration (Solution File)
+   *
+   * This is a "solution" tsconfig that references other TypeScript configs.
+   * It doesn't compile files directly - instead, it orchestrates multiple
+   * project configurations for different parts of the application.
+   *
+   * Why split configs?
+   * - tsconfig.app.json: For application source code (React components, etc.)
+   * - tsconfig.node.json: For Node.js tooling (Vite config, build scripts, etc.)
+   *
+   * This separation allows different compiler settings for different contexts.
+   */
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.app.json" }, // Application source code config
+    { "path": "./tsconfig.node.json" } // Node.js tooling config
   ],
   "compilerOptions": {
+    // Base directory for resolving non-relative module names
     "baseUrl": ".",
+    // Path mapping: allows importing with @/ prefix instead of relative paths
+    // Example: import { Button } from "@/components/ui/button" instead of "../../components/ui/button"
     "paths": {
       "@/*": ["./src/*"]
     }

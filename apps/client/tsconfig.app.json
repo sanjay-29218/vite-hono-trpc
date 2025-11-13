@@ -1,36 +1,78 @@
 {
+  /**
+   * TypeScript Configuration for Application Source Code
+   *
+   * This config is for your React application source code (components, hooks, utils, etc.).
+   * It includes DOM types, React JSX support, and is optimized for browser environments.
+   *
+   * Key differences from tsconfig.node.json:
+   * - Includes DOM types (window, document, etc.)
+   * - React JSX compilation
+   * - More lenient unused variable checking (for development flexibility)
+   */
   "compilerOptions": {
+    // Cache file location for incremental compilation
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    // Compile target: ES2022 (slightly older for broader browser support)
     "target": "ES2022",
+
+    // Use ES2022 class field semantics (define instead of assign)
     "useDefineForClassFields": true,
+
+    // Type definitions: ES2022 + DOM APIs (window, document, etc.)
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // Module system: ESNext (use latest module features)
     "module": "ESNext",
+
+    // Include Vite client types (for import.meta.env, etc.) and Node types
     "types": ["vite/client", "node"],
+
+    // Skip type checking of declaration files in node_modules (faster compilation)
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    /* Bundler mode - Optimized for Vite bundler */
+    // Use bundler-style module resolution (allows importing without extensions)
     "moduleResolution": "bundler",
+    // Allow importing TypeScript files with .ts extensions (Vite handles it)
     "allowImportingTsExtensions": true,
+    // Preserve import/export syntax exactly as written (important for ESM)
     "verbatimModuleSyntax": true,
+    // Force TypeScript to treat all files as modules
     "moduleDetection": "force",
+    // Don't emit JavaScript files (Vite handles bundling)
     "noEmit": true,
+    // Use React 17+ JSX transform (no need to import React in every file)
     "jsx": "react-jsx",
 
-    /* Linting */
+    /* Linting - Type checking rules (more lenient than node config) */
+    // Enable all strict type checking options
     "strict": true,
+    // Allow implicit 'any' types (disabled for development flexibility)
     "noImplicitAny": false,
+    // Don't error on unused locals (warn only, for development flexibility)
     "noUnusedLocals": false,
+    // Don't error on unused parameters (warn only, for development flexibility)
     "noUnusedParameters": false,
+    // Only allow syntax that can be erased (no runtime type info)
     "erasableSyntaxOnly": true,
+    // Error on switch cases that fall through without break/return
     "noFallthroughCasesInSwitch": true,
+    // Require explicit side-effect imports (prevents accidental tree-shaking issues)
     "noUncheckedSideEffectImports": true,
 
-    /* Path mapping */
+    /* Path mapping - Import aliases */
+    // Base directory for resolving non-relative module names
     "baseUrl": ".",
+    // Path mapping: allows importing with @/ prefix instead of relative paths
+    // Example: import { Button } from "@/components/ui/button" instead of "../../components/ui/button"
     "paths": {
       "@/*": ["./src/*"]
     }
   },
+  // Include all files in the src directory
   "include": ["src"],
+  // Exclude the server directory (different project)
   "exclude": ["../server"]
 }

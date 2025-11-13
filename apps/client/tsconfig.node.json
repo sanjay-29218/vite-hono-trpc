@@ -1,26 +1,60 @@
 {
+  /**
+   * TypeScript Configuration for Node.js Tooling
+   *
+   * This config is specifically for Node.js files like vite.config.ts, build scripts,
+   * and other tooling files. It uses Node.js-specific settings (no DOM types, etc.)
+   *
+   * Key differences from tsconfig.app.json:
+   * - No DOM types (no window, document, etc.)
+   * - ES2023 target (newer than app config)
+   * - Stricter unused variable checking
+   */
   "compilerOptions": {
+    // Cache file location for incremental compilation
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+
+    // Compile target: ES2023 (latest stable ECMAScript version)
     "target": "ES2023",
+
+    // Type definitions: Only ES2023 (no DOM, no browser APIs)
     "lib": ["ES2023"],
+
+    // Module system: ESNext (use latest module features)
     "module": "ESNext",
+
+    // No type packages included (Node.js types come from @types/node if needed)
     "types": [],
+
+    // Skip type checking of declaration files in node_modules (faster compilation)
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    /* Bundler mode - Optimized for modern bundlers like Vite */
+    // Use bundler-style module resolution (allows importing without extensions)
     "moduleResolution": "bundler",
+    // Allow importing TypeScript files with .ts extensions (bundler handles it)
     "allowImportingTsExtensions": true,
+    // Preserve import/export syntax exactly as written (important for ESM)
     "verbatimModuleSyntax": true,
+    // Force TypeScript to treat all files as modules
     "moduleDetection": "force",
+    // Don't emit JavaScript files (Vite handles bundling)
     "noEmit": true,
 
-    /* Linting */
+    /* Linting - Strict type checking rules */
+    // Enable all strict type checking options
     "strict": true,
+    // Error on unused local variables (keeps code clean)
     "noUnusedLocals": true,
+    // Error on unused function parameters (keeps code clean)
     "noUnusedParameters": true,
+    // Only allow syntax that can be erased (no runtime type info)
     "erasableSyntaxOnly": true,
+    // Error on switch cases that fall through without break/return
     "noFallthroughCasesInSwitch": true,
+    // Require explicit side-effect imports (prevents accidental tree-shaking issues)
     "noUncheckedSideEffectImports": true
   },
+  // Only include Vite config and other Node.js tooling files
   "include": ["vite.config.ts"]
 }
