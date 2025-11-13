@@ -3,8 +3,22 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import { schema } from "../db/schema.js";
 
+// Determine baseURL - should be the server URL, not client URL
+const getBaseURL = () => {
+  // In Vercel, use VERCEL_URL if available (this is the server URL)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  // Use explicit BASE_URL if set
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+  // Fallback to hardcoded server URL for now
+  return "https://vite-hono-trpc-server.vercel.app";
+};
+
 export const auth = betterAuth({
-  baseURL: "https://vite-hono-trpc-client.vercel.app",
+  baseURL: getBaseURL(),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,

@@ -31,12 +31,34 @@ app.use("*", logger());
 // Auth routes - handle all methods including OPTIONS
 // Better-auth handles its own routing, so we match any path under /api/auth
 app.all("/api/auth/*", async (c) => {
-  return auth.handler(c.req.raw);
+  try {
+    return await auth.handler(c.req.raw);
+  } catch (error) {
+    console.error("Auth handler error:", error);
+    return c.json(
+      {
+        error: "Authentication error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500
+    );
+  }
 });
 
 // Also handle /api/auth without trailing path for root auth endpoints
 app.all("/api/auth", async (c) => {
-  return auth.handler(c.req.raw);
+  try {
+    return await auth.handler(c.req.raw);
+  } catch (error) {
+    console.error("Auth handler error:", error);
+    return c.json(
+      {
+        error: "Authentication error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500
+    );
+  }
 });
 
 app.route("/api/chat", chatRouter);
