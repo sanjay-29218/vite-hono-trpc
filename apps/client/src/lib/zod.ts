@@ -1,17 +1,17 @@
 import { object, string, type z } from "zod";
 
 const getPasswordSchema = (type: "password" | "confirmPassword") =>
-  string({ required_error: `${type} is required` })
+  string({ message: `${type} is required` })
     .min(8, `${type} must be atleast 8 characters`)
     .max(32, `${type} can not exceed 32 characters`);
 
 const getEmailSchema = () =>
-  string({ required_error: "Email is required" })
+  string({ message: "Email is required" })
     .min(1, "Email is required")
     .email("Invalid email");
 
 const getNameSchema = () =>
-  string({ required_error: "Name is required" })
+  string({ message: "Name is required" })
     .min(1, "Name is required")
     .max(50, "Name must be less than 50 characters");
 

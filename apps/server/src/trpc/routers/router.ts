@@ -2,8 +2,8 @@ import { createTRPCRouter } from "../server";
 import { messageRouter } from "./message";
 import { apiKeyRouter } from "./apikey";
 import { chatRouter } from "./chat";
-import { inferRouterInputs } from "@trpc/server";
-import { inferRouterOutputs } from "@trpc/server";
+import type { inferRouterInputs } from "@trpc/server";
+import type { inferRouterOutputs } from "@trpc/server";
 
 const appRouter = createTRPCRouter({
   message: messageRouter,

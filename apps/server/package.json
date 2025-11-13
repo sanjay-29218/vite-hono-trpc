@@ -24,6 +24,7 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/node": "^24.10.1"
   }
 }
