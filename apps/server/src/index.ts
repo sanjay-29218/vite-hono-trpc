@@ -14,7 +14,10 @@ app.get("/health", (c) => c.text("OK"));
 app.use(
   "*",
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "https://vite-hono-trpc-client.vercel.app",
+      "http://localhost:5173",
+    ],
     allowHeaders: ["Content-Type", "Authorization", "Cookie", "Set-Cookie"],
     allowMethods: ["POST", "GET", "OPTIONS", "PUT", "DELETE", "PATCH"],
     exposeHeaders: ["Content-Length", "Set-Cookie"],
@@ -26,7 +29,13 @@ app.use(
 app.use("*", logger());
 
 // Auth routes - handle all methods including OPTIONS
-app.all("/api/auth/*", (c) => {
+// Better-auth handles its own routing, so we match any path under /api/auth
+app.all("/api/auth/*", async (c) => {
+  return auth.handler(c.req.raw);
+});
+
+// Also handle /api/auth without trailing path for root auth endpoints
+app.all("/api/auth", async (c) => {
   return auth.handler(c.req.raw);
 });
 
@@ -41,8 +50,12 @@ app.all("/trpc/*", async (c) => {
   });
 });
 
+// Export for Bun/Node.js runtime
 export default {
   port: 3000,
   fetch: app.fetch,
   idleTimeout: 120,
 };
+
+// Also export the app directly for Vercel/serverless
+export { app };

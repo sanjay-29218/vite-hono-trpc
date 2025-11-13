@@ -4,12 +4,15 @@ import { db } from "../db/index.js";
 import { schema } from "../db/schema.js";
 
 export const auth = betterAuth({
-  baseURL: "http://localhost:3000",
+  baseURL: "https://vite-hono-trpc-client.vercel.app",
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
   }),
-  // Allow requests from the frontend development server
+  trustedOrigins: [
+    "https://vite-hono-trpc-client.vercel.app",
+    "http://localhost:5173",
+  ],
   emailAndPassword: {
     enabled: true,
   },
