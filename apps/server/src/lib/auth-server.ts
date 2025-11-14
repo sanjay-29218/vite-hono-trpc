@@ -10,8 +10,8 @@ const getBaseURL = () => {
     return `https://${process.env.VERCEL_URL}`;
   }
   // Use explicit BASE_URL if set
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL;
+  if (process.env.VITE_API_URL) {
+    return process.env.VITE_API_URL;
   }
   // Fallback to hardcoded server URL for now
   return "https://vite-hono-trpc-server.vercel.app";
